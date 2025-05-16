@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment Settings{% endblock %}
+
+{% block content %}
+    <title>Payment Settings</title>
+    <script src="{{ url_for('static', filename='tailwind.js') }}"></script>
+    <style>
+        @keyframes glow {
+            0% { text-shadow: 0 0 5px rgba(147, 51, 234, 0.5); }
+            50% { text-shadow: 0 0 15px rgba(147, 51, 234, 0.8), 0 0 25px rgba(147, 51, 234, 0.6); }
+            100% { text-shadow: 0 0 5px rgba(147, 51, 234, 0.5); }
+        }
+        .nav-link:hover {
+            animation: glow 1.5s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <h1 class="text-3xl font-bold text-purple-400 font-serif mb-6">Payment Settings</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="mb-4 p-4 rounded-lg bg-gray-800 border border-gray-700
+                {% if category == 'success' %}text-green-400{% endif %}
+                {% if category == 'danger' %}text-red-400{% endif %}
+                {% if category == 'warning' %}text-yellow-400{% endif %}">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('cloud.payments') }}" class="bg-gray-800 p-6 rounded-lg shadow-xl mb-8">
+            <div class="mb-4">
+                <label for="online_fee" class="block text-gray-300 font-semibold mb-2">Online Appointment Fee (₹):</label>
+                <input type="number" name="online_fee" step="0.01" required 
+                    value="{{ fees.get('online', 2) }}"
+                    class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+            </div>
+
+            <div class="mb-4">
+                <label for="offline_fee" class="block text-gray-300 font-semibold mb-2">Offline Appointment Fee (₹):</label>
+                <input type="number" name="offline_fee" step="0.01" required 
+                    value="{{ fees.get('offline', 2) }}"
+                    class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+            </div>
+
+            <button type="submit" 
+                class="bg-purple-500 text-white px-6 py-2 rounded-md hover:bg-purple-600 transition duration-300 w-full">
+                Update Fees
+            </button>
+        </form>
+
+        <!-- Multi-Login Settings -->
+        <div class="bg-gray-800 p-6 rounded-lg shadow-xl mb-8">
+            <h2 class="text-xl font-semibold text-purple-400 mb-4">Multi-Login Settings</h2>
+            <div class="flex space-x-4 mb-4">
+                <form method="POST" action="{{ url_for('cloud.multi_module') }}" class="w-1/2">
+                    <input type="hidden" name="entity" value="patient">
+                    <input type="hidden" name="action_type" value="bulk">
+                    <input type="hidden" name="action" value="activate">
+                    <button type="submit" 
+                            class="bg-purple-500 text-white px-6 py-2 rounded-md hover:bg-purple-600 transition duration-300 w-full">
+                        Activate Multi-Login for All Patients
+                    </button>
+                </form>
+                <form method="POST" action="{{ url_for('cloud.multi_module') }}" class="w-1/2">
+                    <input type="hidden" name="entity" value="patient">
+                    <input type="hidden" name="action_type" value="bulk">
+                    <input type="hidden" name="action" value="deactivate">
+                    <button type="submit" 
+                            class="bg-gray-600 text-white px-6 py-2 rounded-md hover:bg-gray-700 transition duration-300 w-full">
+                        Deactivate Multi-Login for All Patients
+                    </button>
+                </form>
+            </div>
+            <div class="flex space-x-4">
+                <form method="POST" action="{{ url_for('cloud.multi_module') }}" class="w-1/2">
+                    <input type="hidden" name="entity" value="doctor">
+                    <input type="hidden" name="action_type" value="bulk">
+                    <input type="hidden" name="action" value="activate">
+                    <button type="submit" 
+                            class="bg-purple-500 text-white px-6 py-2 rounded-md hover:bg-purple-600 transition duration-300 w-full">
+                        Activate Multi-Login for All Doctors
+                    </button>
+                </form>
+                <form method="POST" action="{{ url_for('cloud.multi_module') }}" class="w-1/2">
+                    <input type="hidden" name="entity" value="doctor">
+                    <input type="hidden" name="action_type" value="bulk">
+                    <input type="hidden" name="action" value="deactivate">
+                    <button type="submit" 
+                            class="bg-gray-600 text-white px-6 py-2 rounded-md hover:bg-gray-700 transition duration-300 w-full">
+                        Deactivate Multi-Login for All Doctors
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="mt-6">
+            <a href="{{ url_for('cloud.index') }}" 
+               class="nav-link text-blue-300 hover:text-purple-400 font-semibold transition-colors duration-300">
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+{% endblock %}
+</body>
+</html>

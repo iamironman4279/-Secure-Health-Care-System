@@ -12,14 +12,32 @@
     <section class="bg-gray-800 p-6 rounded-xl shadow-xl relative overflow-hidden min-h-screen">
         <video class="absolute top-0 left-0 w-full h-full object-cover" autoplay loop muted>
             <source src="{{ url_for('static', filename='animation.mp4') }}" type="video/mp4">
+            
             Your browser does not support the video tag.
         </video>
         <div class="absolute top-10 left-1/2 transform -translate-x-1/2 p-4">
             <div class="bg-gray-900 bg-opacity-50 backdrop-blur-md p-6 rounded-lg text-center max-w-2xl">
                 <p id="animatedText" class="text-lg text-purple-400 leading-relaxed"></p>
             </div>
+            
         </div>
     </section>
+    
+    <footer style="
+    background-color: #1e1e1e;
+    color: #ffffff;
+    text-align: center;
+    padding: 15px 10px;
+    font-family: 'Arial', sans-serif;
+    font-size: 14px;
+    position: fixed;
+    width: 100%;
+    bottom: 0;
+    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
+">
+
+  &copy; 2025 All rights reserved to <strong>Hemanth</strong>, <strong>Pavani</strong>, <strong>Vinnela</strong>.
+</footer>
 {% endblock %}
 {% block scripts %}
     <script>
@@ -45,4 +63,6 @@
             }
         }
     </script>
+    
+
 {% endblock %}

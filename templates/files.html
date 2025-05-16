@@ -44,32 +44,32 @@
     </div>
     {% endif %}
     <div class="table-container overflow-x-auto mb-8">
-        <table class="w-full text-center border-collapse">
+        <table class="w-full text-center border-collapse border border-gray-600" id="encrypted-records-table">
             <thead>
                 <tr class="bg-gray-700">
-                    <th class="p-3 border-b border-gray-600 text-blue-300">Patient ID</th>
-                    <th class="p-3 border-b border-gray-600 text-blue-300">Blood Group</th>
-                    <th class="p-3 border-b border-gray-600 text-blue-300">Blood Pressure</th>
-                    <th class="p-3 border-b border-gray-600 text-blue-300">Body Temperature</th>
-                    <th class="p-3 border-b border-gray-600 text-blue-300">Pulse Rate</th>
-                    <th class="p-3 border-b border-gray-600 text-blue-300">Previous Medications</th>
-                    <th class="p-3 border-b border-gray-600 text-blue-300">Updated Time</th>
-                    <th class="p-3 border-b border-gray-600 text-blue-300">Encrypted Data</th>
-                    <th class="p-3 border-b border-gray-600 text-blue-300">Action</th>
+                    <th class="p-3 border border-gray-600 text-blue-300">Patient ID</th>
+                    <th class="p-3 border border-gray-600 text-blue-300">Blood Group</th>
+                    <th class="p-3 border border-gray-600 text-blue-300">Blood Pressure</th>
+                    <th class="p-3 border border-gray-600 text-blue-300">Body Temperature</th>
+                    <th class="p-3 border border-gray-600 text-blue-300">Pulse Rate</th>
+                    <th class="p-3 border border-gray-600 text-blue-300">Previous Medications</th>
+                    <th class="p-3 border border-gray-600 text-blue-300">Updated Time</th>
+                    <th class="p-3 border border-gray-600 text-blue-300">Encrypted Data</th>
+                    <th class="p-3 border border-gray-600 text-blue-300">Action</th>
                 </tr>
             </thead>
             <tbody>
                 {% for record in encrypted_records %}
                 <tr class="hover:bg-gray-700 transition-colors duration-200">
-                    <td class="p-3 border-b border-gray-600">{{ record.patient_id }}</td>
-                    <td class="p-3 border-b border-gray-600 text-yellow-400">Encrypted</td>
-                    <td class="p-3 border-b border-gray-600 text-yellow-400">Encrypted</td>
-                    <td class="p-3 border-b border-gray-600 text-yellow-400">Encrypted</td>
-                    <td class="p-3 border-b border-gray-600 text-yellow-400">Encrypted</td>
-                    <td class="p-3 border-b border-gray-600 text-yellow-400">Encrypted</td>
-                    <td class="p-3 border-b border-gray-600">{{ record.updated_time }}</td>
-                    <td class="p-3 border-b border-gray-600">{{ record.encrypted_data|truncate(20) }}</td>
-                    <td class="p-3 border-b border-gray-600">
+                    <td class="p-3 border border-gray-600">{{ record.patient_id }}</td>
+                    <td class="p-3 border border-gray-600 encrypted-field" data-seed="{{ record.patient_id }}-{{ record.updated_time }}-BloodGroup"></td>
+                    <td class="p-3 border border-gray-600 encrypted-field" data-seed="{{ record.patient_id }}-{{ record.updated_time }}-BloodPressure"></td>
+                    <td class="p-3 border border-gray-600 encrypted-field" data-seed="{{ record.patient_id }}-{{ record.updated_time }}-BodyTemperature"></td>
+                    <td class="p-3 border border-gray-600 encrypted-field" data-seed="{{ record.patient_id }}-{{ record.updated_time }}-PulseRate"></td>
+                    <td class="p-3 border border-gray-600 encrypted-field" data-seed="{{ record.patient_id }}-{{ record.updated_time }}-PreviousMedications"></td>
+                    <td class="p-3 border border-gray-600">{{ record.updated_time }}</td>
+                    <td class="p-3 border border-gray-600">{{ record.encrypted_data|truncate(20) }}</td>
+                    <td class="p-3 border border-gray-600">
                         <button class="bg-purple-600 text-white px-4 py-1 rounded-md hover:bg-purple-700 
                                        transition-colors duration-300" 
                                 onclick="copyToClipboard('{{ record.encrypted_data }}')">Copy</button>
@@ -80,10 +80,56 @@
         </table>
     </div>
     
+    <footer style="
+    background-color: #1e1e1e;
+    color: #ffffff;
+    text-align: center;
+    padding: 15px 10px;
+    font-family: 'Arial', sans-serif;
+    font-size: 14px;
+    position: fixed;
+    width: 100%;
+    bottom: 0;
+    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
+    ">
+        © 2025 All rights reserved to <strong>Hemanth</strong>, <strong>Pavani</strong>, <strong>Vinnela</strong>.
+    </footer>
 </section>
 {% endblock %}
 {% block scripts %}
 <script>
+    // Simple seeded random number generator
+    function seededRandom(seed) {
+        let x = 0;
+        for (let i = 0; i < seed.length; i++) {
+            x += seed.charCodeAt(i) * (i + 1);
+        }
+        x = Math.sin(x) * 10000;
+        return x - Math.floor(x);
+    }
+
+    // Generate consistent Base64-like string based on seed
+    function generateSeededBase64(seed, length) {
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+        let result = '';
+        let seedValue = 0;
+        for (let i = 0; i < length; i++) {
+            seedValue = seededRandom(seed + i);
+            result += characters.charAt(Math.floor(seedValue * characters.length));
+        }
+        console.log('Generated seeded Base64 string for', seed, ':', result); // Debug log
+        return result;
+    }
+
+    // Populate encrypted fields with seeded Base64 strings
+    document.addEventListener('DOMContentLoaded', function() {
+        const encryptedFields = document.querySelectorAll('#encrypted-records-table .encrypted-field');
+        encryptedFields.forEach(field => {
+            const seed = field.getAttribute('data-seed');
+            field.textContent = generateSeededBase64(seed, 24);
+        });
+    });
+
     function copyToClipboard(text) {
         if (text && text !== 'None') {
             navigator.clipboard.writeText(text).then(() => {

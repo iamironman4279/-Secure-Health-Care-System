@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Doctor Access</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="{{ url_for('static', filename='tailwind.js') }}"></script>
   <style>
     body, html {
       margin: 0;
@@ -111,6 +111,9 @@
         <a href="#" onclick="toggleForm()" class="text-blue-300 hover:text-purple-400 transition-all">Back to Login</a>
       </p>
     </div>
+    <p class="mt-2 text-center text-gray-300">
+      <a href="{{ url_for('auth.home') }}" class="text-blue-300 hover:text-purple-400 font-semibold transition-all">Back to Home</a>
+    </p>
 
   </div>
 
@@ -121,6 +124,21 @@
       document.getElementById("forgotForm").classList.toggle("hidden");
     }
   </script>
+  <footer style="
+  background-color: #1e1e1e;
+  color: #ffffff;
+  text-align: center;
+  padding: 15px 10px;
+  font-family: 'Arial', sans-serif;
+  font-size: 14px;
+  position: fixed;
+  width: 100%;
+  bottom: 0;
+  box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
+">
+&copy; 2025 All rights reserved to <strong>Hemanth</strong>, <strong>Pavani</strong>, <strong>Vinnela</strong>.
+</footer>
+
 
 </body>
 </html>

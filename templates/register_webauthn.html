@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Register Biometric Credential{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-center min-h-screen">
+    <div class="w-full max-w-md bg-gray-800 p-8 rounded-xl shadow-2xl">
+        <h2 class="text-3xl text-purple-400 font-serif text-center mb-6">Register Biometric Credential</h2>
+        <div id="qr-code" class="text-center mt-6 hidden">
+            <p class="text-blue-300 mb-2">Scan this QR code with your authenticator app:</p>
+            <img src="data:image/png;base64,{{ qr_code }}" alt="TOTP QR Code" class="mx-auto">
+        </div>
+        <p class="text-gray-300 text-center mb-6">Click the button below to register your fingerprint or other biometric authenticator.</p>
+        <form id="webauthn-register-form" method="POST">
+            <input type="hidden" name="credential" id="webauthn-credential">
+            <button type="button" onclick="registerWebAuthn()" 
+                    class="w-full bg-purple-600 text-white py-3 px-6 rounded-lg font-semibold text-lg 
+                    hover:bg-purple-700 transition-all duration-300">
+                Register Fingerprint
+            </button>
+        </form>
+        
+    </div>
+</div>
+<footer style="
+    background-color: #1e1e1e;
+    color: #ffffff;
+    text-align: center;
+    padding: 15px 10px;
+    font-family: 'Arial', sans-serif;
+    font-size: 14px;
+    position: fixed;
+    width: 100%;
+    bottom: 0;
+    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
+">
+  &copy; 2025 All rights reserved to <strong>Hemanth</strong>, <strong>Pavani</strong>, <strong>Vinnela</strong>.
+</footer>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function registerWebAuthn() {
+        try {
+            console.log('Starting WebAuthn registration...');
+            const options = JSON.parse('{{ webauthn_options | safe }}');
+            console.log('WebAuthn options:', options);
+            options.publicKey.challenge = base64ToArrayBuffer(options.publicKey.challenge);
+            options.publicKey.user.id = base64ToArrayBuffer(options.publicKey.user.id);
+            console.log('Converted options:', options);
+            const credential = await navigator.credentials.create(options);
+            console.log('Credential created:', credential);
+            if (credential) {
+                const credentialData = {
+                    id: credential.id,
+                    rawId: arrayBufferToBase64(credential.rawId),
+                    type: credential.type,
+                    response: {
+                        clientDataJSON: arrayBufferToBase64(credential.response.clientDataJSON),
+                        attestationObject: arrayBufferToBase64(credential.response.attestationObject),
+                    },
+                };
+                console.log('Credential data prepared:', credentialData);
+                document.getElementById('webauthn-credential').value = JSON.stringify(credentialData);
+                console.log('Submitting form...');
+                document.getElementById('webauthn-register-form').submit();
+            } else {
+                console.error('No credential created');
+                alert('Failed to register biometric credential: No credential returned.');
+            }
+        } catch (err) {
+            console.error('WebAuthn registration error:', err.name, err.message);
+            alert('Failed to register biometric credential: ' + err.message);
+        }
+    }
+
+    function base64ToArrayBuffer(base64) {
+        try {
+            const binary = atob(base64);
+            const len = binary.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes.buffer;
+        } catch (err) {
+            console.error('Base64 to ArrayBuffer error:', err);
+            throw err;
+        }
+    }
+
+    function arrayBufferToBase64(buffer) {
+        try {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary);
+        } catch (err) {
+            console.error('ArrayBuffer to Base64 error:', err);
+            throw err;
+        }
+    }
+</script>
+{% endblock %}

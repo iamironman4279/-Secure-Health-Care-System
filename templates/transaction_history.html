@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block title %}Transaction History{% endblock %}
+
+{% block content %}
+    <title>Transaction History</title>
+    <script src="{{ url_for('static', filename='tailwind.js') }}"></script>
+    <style>
+        @keyframes glow {
+            0% { text-shadow: 0 0 5px rgba(147, 51, 234, 0.5); }
+            50% { text-shadow: 0 0 15px rgba(147, 51, 234, 0.8), 0 0 25px rgba(147, 51, 234, 0.6); }
+            100% { text-shadow: 0 0 5px rgba(147, 51, 234, 0.5); }
+        }
+        .nav-link:hover {
+            animation: glow 1.5s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <h1 class="text-3xl font-bold text-purple-400 font-serif mb-6">Transaction History</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="mb-4 p-4 rounded-lg bg-gray-800 border border-gray-700
+                {% if category == 'success' %}text-green-400{% endif %}
+                {% if category == 'danger' %}text-red-400{% endif %}
+                {% if category == 'warning' %}text-yellow-400{% endif %}">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        {% if transactions %}
+            <div class="overflow-x-auto">
+                <table class="w-full bg-gray-800 shadow-xl rounded-lg">
+                    <thead class="bg-gray-700">
+                        <tr>
+                            <th class="p-3 text-left text-blue-300">Transaction ID</th>
+                            <th class="p-3 text-left text-blue-300">Patient</th>
+                            <th class="p-3 text-left text-blue-300">Amount</th>
+                            <th class="p-3 text-left text-blue-300">Type</th>
+                            <th class="p-3 text-left text-blue-300">Status</th>
+                            <th class="p-3 text-left text-blue-300">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for txn in transactions %}
+                            <tr class="border-b border-gray-700 hover:bg-gray-700 transition-colors duration-200">
+                                <td class="p-3">{{ txn.client_txn_id }}</td>
+                                <td class="p-3">{{ txn.patient_name }}</td>
+                                <td class="p-3">₹{{ txn.amount }}</td>
+                                <td class="p-3">{{ txn.appointment_type.capitalize() }}</td>
+                                <td class="p-3">
+                                    <span class="inline-block px-2 py-1 rounded-full text-sm font-bold
+                                        {% if txn.status == 'SUCCESS' %}bg-green-900 text-green-400{% endif %}
+                                        {% if txn.status == 'FAILED' %}bg-red-900 text-red-400{% endif %}
+                                        {% if txn.status == 'PENDING' %}bg-yellow-900 text-yellow-400{% endif %}">
+                                        {{ txn.status }}
+                                    </span>
+                                </td>
+                                <td class="p-3">{{ txn.created_at }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-gray-300">No transactions found.</p>
+        {% endif %}
+
+        <div class="mt-6">
+            <a href="{{ url_for('cloud.index') }}" 
+               class="nav-link text-blue-300 hover:text-purple-400 font-semibold transition-colors duration-300">
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+</body>
+</html>
+{% endblock %}

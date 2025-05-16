@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cloud Server Dashboard - {% block title %}{% endblock %}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="{{ url_for('static', filename='tailwind.js') }}"></script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen flex">
@@ -31,8 +31,12 @@
             <a href="{{ url_for('cloud.files') }}" class="block py-2.5 px-4 text-blue-300 hover:text-purple-400 hover:bg-gray-700 rounded-lg transition-all duration-300 {% if request.endpoint == 'cloud.files' %}active{% endif %}">Files</a>
             <a href="{{ url_for('cloud.assign_doctors') }}" class="block py-2.5 px-4 text-blue-300 hover:text-purple-400 hover:bg-gray-700 rounded-lg transition-all duration-300 {% if request.endpoint == 'cloud.assign_doctors' %}active{% endif %}">Assign Doctors</a>
             <a href="{{ url_for('cloud.doctor_request') }}" class="block py-2.5 px-4 text-blue-300 hover:text-purple-400 hover:bg-gray-700 rounded-lg transition-all duration-300 {% if request.endpoint == 'cloud.doctor_request' %}active{% endif %}">Doctor Request</a>
+            <a href="{{ url_for('cloud.payments') }}" class="block py-2.5 px-4 text-blue-300 hover:text-purple-400 hover:bg-gray-700 rounded-lg transition-all duration-300 {% if request.endpoint == 'cloud.payments' %}active{% endif %}">Payment Settings</a>
+<a href="{{ url_for('cloud.transaction_history') }}" class="block py-2.5 px-4 text-blue-300 hover:text-purple-400 hover:bg-gray-700 rounded-lg transition-all duration-300 {% if request.endpoint == 'cloud.transaction_history' %}active{% endif %}">Transaction History</a>
+
             <a href="{{ url_for('cloud.graph') }}" class="block py-2.5 px-4 text-blue-300 hover:text-purple-400 hover:bg-gray-700 rounded-lg transition-all duration-300 {% if request.endpoint == 'cloud.graph' %}active{% endif %}">Graph</a>
             <a href="{{ url_for('cloud.decrypt_backup') }}" class="block py-2.5 px-4 text-blue-300 hover:text-purple-400 hover:bg-gray-700 rounded-lg transition-all duration-300 {% if request.endpoint == 'cloud.decrypt_backup' %}active{% endif %}">Decrypt Backup</a>
+            <a href="{{ url_for('cloud.register_webauthn') }}" class="block py-2.5 px-4 text-blue-300 hover:text-purple-400 hover:bg-gray-700 rounded-lg transition-all duration-300 {% if request.endpoint == 'register_webauthn' %}active{% endif %}">Register WebAuthn</a>
         </div>
         <a href="{{ url_for('auth.logout') }}" class="mt-auto mb-4 bg-purple-600 text-white py-2.5 px-4 rounded-lg font-semibold hover:bg-purple-700 hover:shadow-[0_0_15px_rgba(159,122,234,0.7)] transition-all duration-300 text-center">Logout</a>
     </div>

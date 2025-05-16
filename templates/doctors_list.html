@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Doctors{% endblock %}
 {% block content %}
-<section class="bg-gray-800 p-6 rounded-xl shadow-xl">
+<section class="bg-gray-800 p-6 rounded-xl shadow-xl mb-20">
     <h2 class="text-2xl text-purple-400 font-serif mb-4 border-b-2 border-purple-500 pb-2">Manage Doctors</h2>
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -11,54 +11,88 @@
         {% endif %}
     {% endwith %}
     <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse">
+        <table class="w-full text-center border-collapse border border-gray-600">
             <thead>
                 <tr class="bg-gray-700">
-                    <th class="p-3 border-b border-gray-600 text-blue-300">Doctor ID</th>
-                    <th class="p-3 border-b border-gray-600 text-blue-300">Name</th>
-                    <th class="p-3 border-b border-gray-600 text-blue-300">Email</th>
-                    <th class="p-3 border-b border-gray-600 text-blue-300">Phone</th>
-                    <th class="p-3 border-b border-gray-600 text-blue-300">Specialization</th>
-                    <th class="p-3 border-b border-gray-600 text-blue-300">Status</th>
-                    <th class="p-3 border-b border-gray-600 text-blue-300">Actions</th>
+                    <th class="p-3 border border-gray-600 text-blue-300 w-[100px]">Doctor ID</th>
+                    <th class="p-3 border border-gray-600 text-blue-300 w-[150px]">Name</th>
+                    <th class="p-3 border border-gray-600 text-blue-300 w-[200px]">Email</th>
+                    <th class="p-3 border border-gray-600 text-blue-300 w-[120px]">Phone</th>
+                    <th class="p-3 border border-gray-600 text-blue-300 w-[150px]">Specialization</th>
+                    <th class="p-3 border border-gray-600 text-blue-300 w-[150px]">Profile Photo</th>
+                    <th class="p-3 border border-gray-600 text-blue-300 min-w-[200px]">QR Code</th>
+                    <th class="p-3 border border-gray-600 text-blue-300 w-[200px]">Actions</th>
+                    
                 </tr>
             </thead>
             <tbody>
                 {% for doctor in doctors %}
                 <tr class="hover:bg-gray-700 transition-colors duration-200" id="doctor-row-{{ doctor.doctor_id }}">
-                    <td class="p-3 border-b border-gray-600">{{ doctor.doctor_id }}</td>
-                    <td class="p-3 border-b border-gray-600">{{ doctor.name }}</td>
-                    <td class="p-3 border-b border-gray-600">{{ doctor.email }}</td>
-                    <td class="p-3 border-b border-gray-600">{{ doctor.phone }}</td>
-                    <td class="p-3 border-b border-gray-600">{{ doctor.specialization }}</td>
-                    <td class="p-3 border-b border-gray-600">{{ 'Activated' if doctor.is_activated else 'Deactivated' }}</td>
-                    <td class="p-3 border-b border-gray-600 flex space-x-2">
-                        <button onclick="showEditForm('doctor', '{{ doctor.doctor_id }}', '{{ doctor.name }}', '{{ doctor.email }}', '{{ doctor.phone }}', '{{ doctor.specialization }}')" 
-                                class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-all duration-300">
-                            Edit
-                        </button>
-                        <form method="POST" class="inline">
-                            <input type="hidden" name="action" value="delete">
-                            <input type="hidden" name="entity" value="doctor">
-                            <input type="hidden" name="doctor_id" value="{{ doctor.doctor_id }}">
-                            <button type="submit" onclick="return confirm('Are you sure you want to delete this doctor?');" 
-                                    class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-all duration-300">
-                                Delete
+                    <td class="p-3 border border-gray-600 align-middle">{{ doctor.doctor_id }}</td>
+                    <td class="p-3 border border-gray-600 align-middle">{{ doctor.name }}</td>
+                    <td class="p-3 border border-gray-600 align-middle">{{ doctor.email }}</td>
+                    <td class="p-3 border border-gray-600 align-middle">{{ doctor.phone }}</td>
+                    <td class="p-3 border border-gray-600 align-middle">{{ doctor.specialization }}</td>
+                    <td class="p-3 border border-gray-600 align-middle">
+                        <div class="profile-photo-container relative inline-block">
+                            {% if doctor.profile_photo %}
+                                <img src="data:image/jpeg;base64,{{ doctor.profile_photo | b64encode }}" 
+                                     alt="Profile Photo" 
+                                     class="w-24 h-24 rounded-full object-cover border-2 border-purple-500 profile-photo mx-auto">
+                                <button class="view-profile-btn bg-purple-600 text-white px-2 py-1 rounded-lg mt-2 hover:bg-purple-700 transition-all duration-200 block mx-auto" 
+                                        data-photo-src="data:image/jpeg;base64,{{ doctor.profile_photo | b64encode }}">
+                                    View Profile
+                                </button>
+                            {% else %}
+                                <div class="w-24 h-24 rounded-full bg-gray-600 flex items-center justify-center border-2 border-purple-500 mx-auto">
+                                    <span class="text-gray-300 text-base">No Photo</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="p-3 border border-gray-600 align-middle">
+                        <div class="bg-white p-2 rounded-lg inline-block">
+                            <img src="data:image/png;base64,{{ doctor.qr_code }}" 
+                                 alt="QR Code" 
+                                 class="w-48 h-48 qr-code object-contain" 
+                                 data-user-id="{{ doctor.doctor_id }}" 
+                                 data-user-type="doctor">
+                        </div>
+                    </td>
+                    <td class="p-3 border border-gray-600 align-middle">
+                        <div class="flex flex-col space-y-2 justify-center">
+                            <button onclick="showEditForm('doctor', '{{ doctor.doctor_id }}', '{{ doctor.name }}', '{{ doctor.email }}', '{{ doctor.phone }}', '{{ doctor.specialization }}')" 
+                                    class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-all duration-200 w-full">
+                                Edit
                             </button>
-                        </form>
-                        <a href="{{ url_for('cloud.backup_doctor', doctor_id=doctor.doctor_id) }}"
-                           class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-all duration-300">
-                            Backup
-                        </a>
+                            <form method="POST" class="inline">
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="entity" value="doctor">
+                                <input type="hidden" name="doctor_id" value="{{ doctor.doctor_id }}">
+                                <button type="submit" onclick="return confirm('Are you sure you want to delete this doctor?');" 
+                                        class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-all duration-200 w-full">
+                                    Delete
+                                </button>
+                            </form>
+                            <a href="{{ url_for('cloud.backup_doctor', doctor_id=doctor.doctor_id) }}"
+                               class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-all duration-200 w-full text-center">
+                                Backup
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="8" class="py-2">
+                        <hr class="border-t border-gray-600">
                     </td>
                 </tr>
                 <tr id="edit-form-doctor-{{ doctor.doctor_id }}" class="hidden bg-gray-700">
-                    <td colspan="7" class="p-4">
+                    <td colspan="8" class="p-4">
                         <form method="POST" class="space-y-4">
                             <input type="hidden" name="action" value="update">
                             <input type="hidden" name="entity" value="doctor">
                             <input type="hidden" name="doctor_id" value="{{ doctor.doctor_id }}">
-                            <div class="flex space-x-4">
+                            <div class="flex space-x-4 justify-center">
                                 <input type="text" name="name" value="{{ doctor.name }}" placeholder="Name" required 
                                        class="w-1/5 p-2 bg-gray-600 border border-gray-500 rounded-lg text-gray-100">
                                 <input type="email" name="email" value="{{ doctor.email }}" placeholder="Email" required 
@@ -69,26 +103,136 @@
                                        class="w-1/5 p-2 bg-gray-600 border border-gray-500 rounded-lg text-gray-100">
                                 <div class="flex space-x-2">
                                     <button type="submit" 
-                                            class="bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-all duration-300">
+                                            class="bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-all duration-200">
                                         Update
                                     </button>
                                     <button type="button" onclick="hideEditForm('doctor', '{{ doctor.doctor_id }}')" 
-                                            class="bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-all duration-300">
+                                            class="bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-all duration-200">
                                         Cancel
                                     </button>
                                 </div>
                             </div>
                         </form>
                     </td>
+                    
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </section>
+<div id="photo-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-gray-800 p-6 rounded-lg max-w-lg w-full">
+        <img id="modal-photo" src="" alt="Full Profile Photo" class="max-w-full h-auto rounded-lg border-2 border-purple-500">
+        <button id="close-modal" class="mt-4 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 w-full">Close</button>
+    </div>
+</div>
+<footer style="
+background-color: #1e1e1e;
+color: #ffffff;
+text-align: center;
+padding: 15px 10px;
+font-family: 'Arial', sans-serif;
+font-size: 14px;
+position: fixed;
+width: 100%;
+bottom: 0;
+box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
+">
+&copy; 2025 All rights reserved to <strong>Hemanth</strong>, <strong>Pavani</strong>, <strong>Vinnela</strong>.
+</footer>
+{% endblock %}
+{% block styles %}
+<style>
+    .profile-photo-container {
+        position: relative;
+        display: inline-block;
+    }
+    .profile-photo {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .profile-photo:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 15px rgba(147, 51, 234, 0.5);
+    }
+    .qr-code {
+        transition: opacity 0.3s ease;
+        object-fit: contain;
+    }
+</style>
 {% endblock %}
 {% block scripts %}
 <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('Script loaded for doctors_list.html');
+        const buttons = document.querySelectorAll('.view-profile-btn');
+        const modal = document.getElementById('photo-modal');
+        const modalPhoto = document.getElementById('modal-photo');
+        const closeModalBtn = document.getElementById('close-modal');
+
+        console.log(`Found ${buttons.length} view-profile-btn elements`);
+
+        buttons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('View Profile button clicked');
+                const photoSrc = button.getAttribute('data-photo-src');
+                console.log(`Opening modal with photo: ${photoSrc ? photoSrc.substring(0, 50) + '...' : 'null'}`);
+                if (photoSrc) {
+                    modalPhoto.src = photoSrc;
+                    modal.classList.remove('hidden');
+                } else {
+                    console.error('No photo source found for button');
+                }
+            });
+        });
+
+        closeModalBtn.addEventListener('click', () => {
+            console.log('Closing modal via button');
+            modal.classList.add('hidden');
+            modalPhoto.src = '';
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                console.log('Clicked outside modal, closing');
+                modal.classList.add('hidden');
+                modalPhoto.src = '';
+            }
+        });
+
+        // QR Code Refresh Logic
+        const refreshQRCode = async (qrElement) => {
+            const userId = qrElement.getAttribute('data-user-id');
+            const userType = qrElement.getAttribute('data-user-type');
+            try {
+                const response = await fetch(`/cloud/generate_qr_code/${userType}/${userId}`, {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (data.qr_code) {
+                    qrElement.src = `data:image/png;base64,${data.qr_code}`;
+                    qrElement.style.opacity = '1';
+                } else {
+                    console.error('Failed to fetch QR code:', data.error);
+                }
+            } catch (error) {
+                console.error('Error refreshing QR code:', error);
+            }
+        };
+
+        const qrCodes = document.querySelectorAll('.qr-code');
+        qrCodes.forEach(qr => {
+            refreshQRCode(qr); // Initial load
+            setInterval(() => {
+                qr.style.opacity = '0.5';
+                refreshQRCode(qr);
+            }, 60000); // Refresh every 60 seconds
+        });
+    });
+
     function showEditForm(entity, id, name, email, phone, extra) {
         document.querySelectorAll('[id^="edit-form-"]').forEach(form => form.classList.add('hidden'));
         const formId = `edit-form-${entity}-${id}`;

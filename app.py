@@ -6,7 +6,7 @@ from utils.encryption import AESEncryption, RSAEncryption, DSASignature
 from config import DB_CONFIG, AES_SECRET_KEY
 import MySQLdb.cursors
 import base64
-
+import base64
 # In app.py, add this import
 from routes.pharmacy_routes import init_pharmacy
 import random
@@ -32,9 +32,52 @@ from routes.appointment_routes import appointment_bp, init_appointment
 from routes.video_routes import init_video, video_bp
 from mail import init_mail  # Import init_mail from mail.py
 
+# ... (previous imports remain unchanged)
+import base64
+from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash
+from flask_mysqldb import MySQL
+from flask_mail import Mail
+from werkzeug.security import generate_password_hash, check_password_hash
+from utils.encryption import AESEncryption, RSAEncryption, DSASignature
+from config import DB_CONFIG, AES_SECRET_KEY
+import MySQLdb.cursors
+import base64  # Already imported, no need to duplicate
+from routes.pharmacy_routes import init_pharmacy
+import random
+import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import plotly.express as px
+import pandas as pd
+from io import BytesIO
+import secrets
+import pyotp
+import qrcode
+import requests
+import json
+from uuid import uuid4
+from datetime import datetime
+
+# Import Blueprints
+from routes.auth_routes import auth_bp
+from routes.patient_routes import patient_bp
+from routes.doctor_routes import doctor_bp
+from routes.cloud_routes import cloud_bp, init_cloud
+from routes.appointment_routes import appointment_bp, init_appointment
+from routes.video_routes import init_video, video_bp
+from mail import init_mail
+
 app = Flask(__name__)
 app.secret_key = '5e8e565836ec4ab43a22afe1d316f35f87bf7eeab2d0b80d862d31d6321b976e'
 app.permanent_session_lifetime = 3600  # Sessions last 1 hour
+
+# Define the b64encode filter
+def b64encode_filter(data):
+    if data is None:
+        return ''
+    return base64.b64encode(data).decode('utf-8')
+
+# Register the filter with Jinja2
+app.jinja_env.filters['b64encode'] = b64encode_filter
 
 # ---------------- UPI Gateway Constants ---------------- #
 UPI_GATEWAY_API_KEY = "eb8414ec-1f13-4c8f-b713-ae55fbc94a97"
@@ -51,8 +94,8 @@ app.config['MYSQL_DB'] = DB_CONFIG['database']
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'hemanth42079@gmail.com'  # Your Gmail address
-app.config['MAIL_PASSWORD'] = 'spxiqpqiuhaoixbk'  # Your app password
+app.config['MAIL_USERNAME'] = 'hemanth42079@gmail.com'
+app.config['MAIL_PASSWORD'] = 'spxiqpqiuhaoixbk'
 app.config['MAIL_DEFAULT_SENDER'] = 'hemanth42079@gmail.com'
 
 mysql = MySQL(app)
@@ -63,11 +106,8 @@ aes = AESEncryption(AES_SECRET_KEY)
 rsa = RSAEncryption()
 dsa = DSASignature()
 
-# After other blueprint registrations, add:
-app.register_blueprint(init_pharmacy(mysql))
-
 # Register Blueprints
-# Register Blueprints (No Duplicates)
+app.register_blueprint(init_pharmacy(mysql))
 app.register_blueprint(auth_bp)
 app.register_blueprint(patient_bp)
 app.register_blueprint(doctor_bp)

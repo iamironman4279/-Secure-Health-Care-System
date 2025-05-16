@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Locations</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            margin-top: 30px;
+        }
+        .table {
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .filter-form {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4">Login Locations</h1>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form class="filter-form" method="GET">
+            <div class="row g-3 align-items-center">
+                <div class="col-auto">
+                    <label for="user_type" class="form-label">Filter by User Type:</label>
+                </div>
+                <div class="col-auto">
+                    <select name="user_type" id="user_type" class="form-select">
+                        <option value="">All</option>
+                        <option value="patient" {% if user_type == 'patient' %}selected{% endif %}>Patient</option>
+                        <option value="doctor" {% if user_type == 'doctor' %}selected{% endif %}>Doctor</option>
+                        <option value="admin" {% if user_type == 'admin' %}selected{% endif %}>Admin</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">Filter</button>
+                </div>
+            </div>
+        </form>
+
+        {% if locations %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>User ID</th>
+                            <th>User Name</th>
+                            <th>User Type</th>
+                            <th>IP Address</th>
+                            <th>City</th>
+                            <th>Region</th>
+                            <th>Country</th>
+                            <th>Latitude</th>
+                            <th>Longitude</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for location in locations %}
+                            <tr>
+                                <td>{{ location.user_id }}</td>
+                                <td>{{ location.user_name or 'N/A' }}</td>
+                                <td>{{ location.user_type }}</td>
+                                <td>{{ location.ip_address }}</td>
+                                <td>{{ location.city or 'N/A' }}</td>
+                                <td>{{ location.region or 'N/A' }}</td>
+                                <td>{{ location.country or 'N/A' }}</td>
+                                <td>{{ location.latitude or 'N/A' }}</td>
+                                <td>{{ location.longitude or 'N/A' }}</td>
+                                <td>{{ location.timestamp }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">No login locations recorded yet.</p>
+        {% endif %}
+
+        <a href="{{ url_for('cloud.index') }}" class="btn btn-secondary mt-3">Back to Dashboard</a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

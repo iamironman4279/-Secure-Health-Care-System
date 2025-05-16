@@ -23,7 +23,7 @@ pharmacy_bp = Blueprint('pharmacy', __name__)
 
 db = None
 
-UPI_GATEWAY_API_KEY = "8c7c99fe-3f9a-4dbb-a07c-561bdb2e00b3"
+UPI_GATEWAY_API_KEY = "1a2c85dc-b447-45f6-bc2b-3b607edef0ba"
 UPI_GATEWAY_CREATE_ORDER_URL = "https://api.ekqr.in/api/create_order"
 UPI_GATEWAY_CHECK_STATUS_URL = "https://api.ekqr.in/api/check_order_status"
 

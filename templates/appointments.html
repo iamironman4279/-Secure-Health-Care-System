@@ -1,8 +1,11 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Book Appointment</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="{{ url_for('static', filename='tailwind.js') }}"></script>
     <script src="https://unpkg.com/@dotlottie/player-component@2.7.12/dist/dotlottie-player.mjs" type="module"></script>
     <style>
         @keyframes glow {
@@ -33,11 +36,77 @@
             opacity: 0;
             pointer-events: none;
         }
+
+        /* Sidebar Styles */
+        .sidebar {
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+            background: #2d3748;
+            border-right: 2px solid #9333ea;
+            z-index: 50;
+        }
+        .sidebar.open {
+            transform: translateX(0);
+        }
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 40;
+        }
+        .sidebar-overlay.active {
+            display: block;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+        }
+        .sidebar.open .nav-link {
+            animation: slideIn 0.3s ease-in forwards;
+        }
+        .sidebar:not(.open) .nav-link {
+            animation: slideOut 0.3s ease-out forwards;
+        }
+        .neon-gradient {
+            background: linear-gradient(45deg, #9333ea, #06b6d4, #d8b4fe);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        /* Ensure footer doesn't overlap content */
+        .content-container {
+            padding-bottom: 60px; /* Adjust based on footer height */
+        }
+        /* Disabled button style */
+        button:disabled {
+            background-color: #6b7280;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen">
-    <!-- Loading Animation (50% size: 150px x 150px) -->
-    <div id="loader">
+    <!-- Loader -->
+    <div id="loader" class="hidden">
         <dotlottie-player 
             src="https://lottie.host/d7c0ef6c-ab8e-4878-8616-f715dde2daa3/rHYriJxVCS.lottie" 
             background="transparent" 
@@ -48,7 +117,44 @@
         </dotlottie-player>
     </div>
 
-    <div class="container mx-auto px-4 py-8 max-w-4xl">
+    <!-- Sidebar -->
+    <div class="sidebar fixed top-0 left-0 h-full w-64 shadow-xl z-50 overflow-y-auto">
+        <div class="p-4 border-b border-gray-700">
+            <h2 class="text-xl font-bold text-purple-400 neon-gradient">Patient Menu</h2>
+            <button id="close-sidebar" class="mt-2 text-gray-300 hover:text-purple-400 focus:outline-none" aria-label="Close sidebar">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <nav class="flex flex-col p-4 space-y-2">
+            <a href="{{ url_for('patient.dashboard') }}" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Dashboard</a>
+            <a href="{{ url_for('patient.upload') }}" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Upload Data</a>
+            <a href="{{ url_for('patient.decrypt_key') }}" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Medical Records</a>
+            <a href="{{ url_for('appointment.appointments') }}" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Appointments</a>
+            <a href="{{ url_for('pharmacy.pharmacy') }}" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Pharmacy</a>
+            <a href="{{ url_for('patient.verify_doctor') }}" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Verify Doctor</a>
+            <a href="#prescriptions" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Prescriptions</a>
+            <a href="#appointments" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Recent Appointments</a>
+            <a href="{{ url_for('patient.medical_history_pdf') }}" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Download Receipt</a>
+            <a href="{{ url_for('auth.logout') }}" class="bg-purple-500 text-white px-3 py-2 rounded-md hover:bg-purple-600 transition duration-300 text-center">Logout</a>
+        </nav>
+    </div>
+
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- Top Bar with Toggle Button -->
+    <div class="bg-gray-800 p-4 flex justify-between items-center shadow-lg sticky top-0 z-40">
+        <button id="toggle-sidebar" class="text-gray-300 hover:text-purple-400 focus:outline-none" aria-label="Toggle sidebar">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+        </button>
+        <h1 class="text-xl font-bold text-purple-400 neon-gradient">Book an Appointment</h1>
+    </div>
+
+    <div class="container mx-auto px-4 py-8 max-w-4xl content-container">
         <h1 class="text-3xl font-bold text-purple-400 font-serif mb-6">Book an Appointment</h1>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -57,7 +163,8 @@
               <div class="mb-4 p-4 rounded-lg bg-gray-800 border border-gray-700
                 {% if category == 'success' %}text-green-400{% endif %}
                 {% if category == 'danger' %}text-red-400{% endif %}
-                {% if category == 'warning' %}text-yellow-400{% endif %}">
+                {% if category == 'warning' %}text-yellow-400{% endif %}"
+                role="alert">
                 {{ message }}
               </div>
             {% endfor %}
@@ -66,40 +173,101 @@
 
         {% if not show_payment %}
             <!-- Appointment Booking Form -->
-            <form method="POST" action="{{ url_for('appointment.appointments') }}" class="bg-gray-800 p-6 rounded-lg shadow-xl mb-8">
+            <form id="appointment-form" method="POST" action="{{ url_for('appointment.appointments') }}" class="bg-gray-800 p-6 rounded-lg shadow-xl mb-8">
                 <div class="mb-4">
-                    <label for="doctor" class="block text-gray-300 font-semibold mb-2">Choose a Doctor:</label>
-                    <select name="doctor_id" required 
-                        class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
-                        {% for doctor in doctors %}
-                            <option value="{{ doctor.doctor_id }}">{{ doctor.name }} ({{ doctor.specialization }})</option>
-                        {% endfor %}
+                    <label for="doctor_id" class="block text-gray-300 font-semibold mb-2">Choose a Doctor:</label>
+                    {% if doctors %}
+                        <select name="doctor_id" id="doctor_id" required 
+                            class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            aria-describedby="doctor-help">
+                            <option value="" disabled selected>Select a Doctor</option>
+                            {% for doctor in doctors %}
+                                <option value="{{ doctor.doctor_id }}">{{ doctor.name }} ({{ doctor.specialization }})</option>
+                            {% endfor %}
+                        </select>
+                        <p id="doctor-help" class="text-sm text-gray-400 mt-1">
+                            Note: Doctors may be unavailable for 10 minutes after a recent booking.
+                        </p>
+                    {% else %}
+                        <select name="doctor_id" id="doctor_id" disabled 
+                            class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-gray-100 opacity-50 cursor-not-allowed">
+                            <option value="" selected>No doctors available</option>
+                        </select>
+                        <p class="text-sm text-yellow-400 mt-1">
+                            All doctors are currently booked. Please try again in a few minutes.
+                        </p>
+                    {% endif %}
+                </div>
+
+                <div class="mb-4">
+                    <label for="appointment_type" class="block text-gray-300 font-semibold mb-2">Appointment Type:</label>
+                    <select name="appointment_type" id="appointment_type" required 
+                        class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        onchange="updateFee()">
+                        <option value="online">Online</option>
+                        <option value="offline">Offline</option>
                     </select>
                 </div>
 
                 <div class="mb-4">
                     <label for="appointment_date" class="block text-gray-300 font-semibold mb-2">Date:</label>
-                    <input type="date" name="appointment_date" required 
-                        class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <input type="date" name="appointment_date" id="appointment_date" required 
+                        class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        min="{{ (today_date) }}" aria-describedby="date-error">
+                    <p id="date-error" class="text-sm text-red-400 hidden mt-1">Please select a valid date.</p>
                 </div>
 
                 <div class="mb-4">
                     <label for="appointment_time" class="block text-gray-300 font-semibold mb-2">Time:</label>
-                    <input type="time" name="appointment_time" required 
+                    <input type="time" name="appointment_time" id="appointment_time" required 
                         class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
                 </div>
 
                 <div class="mb-4">
                     <label for="reason" class="block text-gray-300 font-semibold mb-2">Reason for Visit:</label>
-                    <textarea name="reason" required 
-                        class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 h-32"></textarea>
+                    <textarea name="reason" id="reason" required 
+                        class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 h-32"
+                        aria-describedby="reason-error"></textarea>
+                    <p id="reason-error" class="text-sm text-red-400 hidden mt-1">Please provide a reason for the visit.</p>
                 </div>
 
-                <button type="submit" 
-                    class="bg-purple-500 text-white px-6 py-2 rounded-md hover:bg-purple-600 transition duration-300 w-full">
-                    Proceed to Payment (₹2)
+                <button type="submit" id="submit-btn" 
+                    class="bg-purple-500 text-white px-6 py-2 rounded-md hover:bg-purple-600 transition duration-300 w-full disabled:bg-gray-600"
+                    aria-label="Proceed to payment">
+                    Proceed to Payment (<span id="fee-display">₹{{ fees.get('online', 2) }}</span>)
                 </button>
             </form>
+
+            <script>
+                const fees = {{ fees | tojson }};
+                function updateFee() {
+                    const appointmentType = document.getElementById('appointment_type').value;
+                    const feeDisplay = document.getElementById('fee-display');
+                    feeDisplay.textContent = `₹${fees[appointmentType] || 2}`;
+                }
+
+                // Prevent multiple form submissions
+                document.getElementById('appointment-form').addEventListener('submit', function(e) {
+                    const submitBtn = document.getElementById('submit-btn');
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Processing...';
+                    document.getElementById('loader').classList.remove('hidden');
+                });
+
+                // Basic client-side validation for date
+                document.getElementById('appointment_date').addEventListener('change', function() {
+                    const dateInput = this;
+                    const dateError = document.getElementById('date-error');
+                    const today = new Date().toISOString().split('T')[0];
+                    if (dateInput.value < today) {
+                        dateError.classList.remove('hidden');
+                        dateInput.setCustomValidity('Please select a future date.');
+                    } else {
+                        dateError.classList.add('hidden');
+                        dateInput.setCustomValidity('');
+                    }
+                });
+            </script>
         {% endif %}
 
         {% if show_payment %}
@@ -107,27 +275,25 @@
             <div class="bg-gray-800 p-6 rounded-lg shadow-xl mb-8">
                 <h2 class="text-2xl font-bold text-purple-400 font-serif mb-4">Complete Your Payment</h2>
                 <p class="text-gray-300 mb-2">Amount: <span class="font-bold text-green-400">₹{{ amount }}</span></p>
+                <p class="text-gray-300 mb-2">Appointment Type: <span class="font-bold text-blue-400">{{ appointment_type.capitalize() }}</span></p>
                 <p class="text-gray-300 mb-4">Scan the QR code or click below to pay via UPI (PhonePe, Google Pay, Paytm, etc.):</p>
                 <div class="flex justify-center mb-4">
                     <img src="data:image/png;base64,{{ qr_code }}" alt="Payment QR Code" class="h-48 w-48">
                 </div>
                 <a href="{{ payment_url }}" target="_blank" 
-                   class="bg-purple-500 text-white px-6 py-2 rounded-md hover:bg-purple-600 transition duration-300 w-full block text-center">
-                    Pay ₹2 Now
+                   class="bg-purple-500 text-white px-6 py-2 rounded-md hover:bg-purple-600 transition duration-300 w-full block text-center"
+                   aria-label="Pay now">
+                    Pay ₹{{ amount }} Now
                 </a>
-                {% if upi_intent and upi_intent.phonepe_link %}
-                    <div class="mt-4 space-y-2">
-                        <a href="{{ upi_intent.phonepe_link }}" class="text-purple-400 hover:underline">Pay with PhonePe</a><br>
-                        <a href="{{ upi_intent.gpay_link }}" class="text-purple-400 hover:underline">Pay with Google Pay</a><br>
-                        <a href="{{ upi_intent.paytm_link }}" class="text-purple-400 hover:underline">Pay with Paytm</a>
-                    </div>
-                {% endif %}
                 <div class="flex justify-center mt-6 space-x-4">
                     <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/PhonePe_Logo.svg/512px-PhonePe_Logo.svg.png" alt="PhonePe" class="h-8">
                     <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Google_Pay_Logo.svg/512px-Google_Pay_Logo.svg.png" alt="Google Pay" class="h-8">
                     <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/Paytm_Logo_%28standalone%29.svg/512px-Paytm_Logo_%28standalone%29.svg.png" alt="Paytm" class="h-8">
                 </div>
-                <p class="text-sm text-gray-400 mt-4">After payment, return here or wait for automatic redirection to confirm your appointment.</p>
+                <p class="text-sm text-gray-400 mt-4">After payment, wait for automatic confirmation or return here.</p>
+                <div id="payment-status" class="mt-4 p-4 rounded-lg hidden">
+                    <p id="payment-message" class="text-gray-300"></p>
+                </div>
                 <div id="timeout-message" class="hidden mt-4 p-4 bg-red-900 text-red-400 rounded-lg">
                     Payment timed out. Please try again or return to book a new appointment.
                 </div>
@@ -139,26 +305,41 @@
                     let attempts = 0;
                     const maxAttempts = 18; // 3 minutes (18 * 10s)
                     function checkPaymentStatus() {
-                        fetch('/check_payment_status', {
+                        document.getElementById('loader').classList.remove('hidden');
+                        const paymentStatus = document.getElementById('payment-status');
+                        const paymentMessage = document.getElementById('payment-message');
+                        fetch('{{ url_for("appointment.check_payment_status") }}', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ client_txn_id: '{{ session.pending_appointment.client_txn_id }}' })
+                            body: JSON.stringify({ client_txn_id: '{{ client_txn_id }}' })
                         })
                         .then(response => response.json())
                         .then(data => {
-                            console.log('Payment status:', data.status);
+                            document.getElementById('loader').classList.add('hidden');
+                            paymentStatus.classList.remove('hidden');
+                            paymentMessage.textContent = data.message;
                             if (data.status === 'SUCCESS') {
-                                window.location.href = "{{ url_for('appointment.appointments') }}";
+                                paymentStatus.classList.add('bg-green-900', 'text-green-400');
+                                setTimeout(() => {
+                                    window.location.href = "{{ url_for('appointment.appointments') }}";
+                                }, 2000);
+                            } else if (data.status === 'FAILED') {
+                                paymentStatus.classList.add('bg-red-900', 'text-red-400');
                             } else if (attempts < maxAttempts) {
+                                paymentStatus.classList.add('bg-yellow-900', 'text-yellow-400');
                                 attempts++;
                                 setTimeout(checkPaymentStatus, 10000); // Check every 10s
                             } else {
-                                console.log('Payment still pending after 3 minutes');
                                 document.getElementById('timeout-message').classList.remove('hidden');
+                                paymentStatus.classList.add('bg-red-900', 'text-red-400');
+                                paymentMessage.textContent = 'Payment verification timed out.';
                             }
                         })
                         .catch(error => {
-                            console.log('Status check failed:', error);
+                            document.getElementById('loader').classList.add('hidden');
+                            paymentStatus.classList.remove('hidden');
+                            paymentStatus.classList.add('bg-red-900', 'text-red-400');
+                            paymentMessage.textContent = 'Error checking payment status. Please try again.';
                             if (attempts < maxAttempts) {
                                 attempts++;
                                 setTimeout(checkPaymentStatus, 10000);
@@ -179,6 +360,7 @@
                     <thead class="bg-gray-700">
                         <tr>
                             <th class="p-3 text-left text-blue-300">Doctor</th>
+                            <th class="p-3 text-left text-blue-300">Type</th>
                             <th class="p-3 text-left text-blue-300">Date</th>
                             <th class="p-3 text-left text-blue-300">Time</th>
                             <th class="p-3 text-left text-blue-300">Reason</th>
@@ -188,88 +370,38 @@
                     </thead>
                     <tbody>
                         {% for appt in appointments %}
-                            <tr class="border-b border-gray-700 hover:bg-gray-700 transition-colors duration-200">
-                                <td class="p-3">{{ appt.doctor_name }}</td>
-                                <td class="p-3">{{ appt.appointment_date }}</td>
-                                <td class="p-3">{{ appt.appointment_time }}</td>
-                                <td class="p-3">{{ appt.reason }}</td>
-                                <td class="p-3">
-                                    <span class="inline-block px-2 py-1 rounded-full text-sm font-bold
-                                        {% if appt.status == 'Confirmed' %}bg-green-900 text-green-400{% endif %}
-                                        {% if appt.status == 'Cancelled' %}bg-red-900 text-red-400{% endif %}
-                                        {% if appt.status == 'Pending' %}bg-yellow-900 text-yellow-400{% endif %}">
-                                        {{ appt.status }}
-                                    </span>
-                                </td>
-                                <td class="p-3">
-                                    {% if appt.status == 'Confirmed' %}
-                                        <a href="{{ url_for('video.join_video', unique_url=appt.video_call_url) }}"
-                                           class="bg-purple-500 text-white px-4 py-1 rounded-md hover:bg-purple-600 transition duration-300">
-                                            Join Call
-                                        </a>
-                                    {% elif appt.status == 'Cancelled' %}
-                                        <span class="text-red-400">Rejected by Doctor</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
+                        <tr class="border-b border-gray-700 hover:bg-gray-700 transition-colors duration-200">
+                            <td class="p-3">{{ appt.doctor_name }}</td>
+                            <td class="p-3">{{ appt.appointment_type.capitalize() }}</td>
+                            <td class="p-3">{{ appt.appointment_date }}</td>
+                            <td class="p-3">{{ appt.appointment_time }}</td>
+                            <td class="p-3">{{ appt.reason }}</td>
+                            <td class="p-3">
+                                <span class="inline-block px-2 py-1 rounded-full text-sm font-bold
+                                    {% if appt.status == 'Confirmed' %}bg-green-900 text-green-400{% endif %}
+                                    {% if appt.status == 'Cancelled' %}bg-red-900 text-red-400{% endif %}
+                                    {% if appt.status == 'Pending' %}bg-yellow-900 text-yellow-400{% endif %}">
+                                    {{ appt.status }}
+                                </span>
+                            </td>
+                            <td class="p-3">
+                                {% if appt.status == 'Confirmed' and appt.appointment_type == 'online' %}
+                                    <a href="{{ url_for('video.join_video', unique_url=appt.video_call_url) }}"
+                                       class="bg-purple-500 text-white px-4 py-1 rounded-md hover:bg-purple-600 transition duration-300"
+                                       aria-label="Join video call">
+                                        Join Call
+                                    </a>
+                                {% elif appt.status == 'Confirmed' and appt.appointment_type == 'offline' %}
+                                    <span class="text-green-400">Visit Clinic</span>
+                                {% elif appt.status == 'Cancelled' %}
+                                    <span class="text-red-400">Rejected by Doctor</span>
+                                {% endif %}
+                            </td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-        {% endif %}
-
-        {% if show_payment and client_txn_id %}
-        <script>
-            function checkPaymentStatus() {
-                fetch('/check_payment_status', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        client_txn_id: '{{ client_txn_id }}'
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Payment status:', data);
-                    if (data.status === 'SUCCESS' || data.status === 'success') {
-                        const statusDiv = document.getElementById('payment-status');
-                        if (statusDiv) {
-                            statusDiv.innerHTML = '<div class="alert alert-success">Payment successful! Redirecting...</div>';
-                        }
-                        setTimeout(() => {
-                            window.location.href = '/appointments';
-                        }, 2000);
-                        clearInterval(statusCheckInterval);
-                    }
-                    else if (data.status === 'FAILED' || data.status === 'failed') {
-                        const statusDiv = document.getElementById('payment-status');
-                        if (statusDiv) {
-                            statusDiv.innerHTML = '<div class="alert alert-danger">Payment failed: ' + 
-                                (data.message || 'Unknown error') + '</div>';
-                        }
-                        setTimeout(() => {
-                            window.location.href = '/appointments';
-                        }, 3000);
-                        clearInterval(statusCheckInterval);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error checking payment status:', error);
-                });
-            }
-            checkPaymentStatus();
-            const statusCheckInterval = setInterval(checkPaymentStatus, 5000);
-            document.addEventListener('DOMContentLoaded', function() {
-                const paymentSection = document.querySelector('.payment-section');
-                if (paymentSection) {
-                    const statusDiv = document.createElement('div');
-                    statusDiv.id = 'payment-status';
-                    paymentSection.appendChild(statusDiv);
-                }
-            });
-        </script>
         {% endif %}
 
         <div class="mt-6">
@@ -283,33 +415,69 @@
     <!-- JavaScript -->
     <script>
         const loader = document.getElementById('loader');
+        const sidebar = document.querySelector('.sidebar');
+        const toggleSidebarBtn = document.getElementById('toggle-sidebar');
+        const closeSidebarBtn = document.getElementById('close-sidebar');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        const navLinks = document.querySelectorAll('.nav-link');
 
-        // Hide loader when page fully loads
+        function toggleSidebar() {
+            sidebar.classList.toggle('open');
+            sidebarOverlay.classList.toggle('active');
+            document.body.classList.toggle('overflow-hidden');
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
+            // Hide loader on page load
             window.addEventListener('load', () => {
                 loader.classList.add('hidden');
             });
-        });
 
-        // Show loader on form submission
-        document.querySelectorAll('form').forEach(form => {
-            form.addEventListener('submit', () => {
-                loader.classList.remove('hidden');
+            // Sidebar toggle
+            toggleSidebarBtn.addEventListener('click', toggleSidebar);
+            closeSidebarBtn.addEventListener('click', toggleSidebar);
+            sidebarOverlay.addEventListener('click', toggleSidebar);
+
+            // Handle nav link clicks
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    const href = link.getAttribute('href');
+                    if (href.startsWith('#')) {
+                        e.preventDefault();
+                        toggleSidebar();
+                    } else if (!href.includes('medical_history_pdf')) {
+                        loader.classList.remove('hidden');
+                    }
+                });
             });
-        });
 
-        // Show loader on navigation links
-        document.querySelectorAll('a[href]').forEach(link => {
-            link.addEventListener('click', (e) => {
-                if (link.getAttribute('target') !== '_blank') { // Exclude payment links opening in new tab
-                    e.preventDefault();
-                    loader.classList.remove('hidden');
-                    setTimeout(() => {
-                        window.location.href = link.href;
-                    }, 500); // 500ms delay to show loader
+            // Navigation link loader logic
+            document.querySelectorAll('a[href]').forEach(link => {
+                if (!link.classList.contains('nav-link') && link.getAttribute('target') !== '_blank') {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        loader.classList.remove('hidden');
+                        setTimeout(() => {
+                            window.location.href = link.href;
+                        }, 500);
+                    });
                 }
             });
         });
     </script>
+
+    <footer style="
+        background-color: #1e1e1e;
+        color: #ffffff;
+        text-align: center;
+        padding: 15px 10px;
+        font-family: 'Arial', sans-serif;
+        font-size: 14px;
+        width: 100%;
+        bottom: 0;
+        box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
+    ">
+        © 2025 All rights reserved to <strong>Hemanth</strong>, <strong>Pavani</strong>, <strong>Vinnela</strong>.
+    </footer>
 </body>
 </html>

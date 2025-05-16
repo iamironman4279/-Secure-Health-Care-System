@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Doctor Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="{{ url_for('static', filename='tailwind.js') }}"></script>
     <script src="https://unpkg.com/@dotlottie/player-component@2.7.12/dist/dotlottie-player.mjs" type="module"></script>
     <style>
         @keyframes glow {
@@ -18,12 +18,12 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .fade-in {
-            animation: fadeIn 0.5s ease-in;
+            animation: fadeIn 0.5s ease-in forwards;
         }
 
         @media (max-width: 640px) {
@@ -66,9 +66,107 @@
             opacity: 0;
             pointer-events: none;
         }
+
+        /* Sidebar Styles */
+        .sidebar {
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+        }
+        .sidebar.open {
+            transform: translateX(0);
+        }
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 40;
+        }
+        .sidebar-overlay.active {
+            display: block;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+        }
+        .sidebar.open .nav-link {
+            animation: slideIn 0.3s ease-in forwards;
+        }
+        .sidebar:not(.open) .nav-link {
+            animation: slideOut 0.3s ease-out forwards;
+        }
+
+        /* Content Section Styles */
+        section {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            transform: translateY(20px);
+        }
+        section.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        section:not(.active) {
+            position: absolute;
+            pointer-events: none;
+        }
+        .welcome-message {
+            transition: opacity 0.5s ease;
+        }
+
+        /* Profile Photo Styles */
+        .profile-photo-container {
+            position: relative;
+            display: inline-block;
+        }
+        .profile-photo {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .profile-photo:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(147, 51, 234, 0.5);
+        }
+        .profile-photo-container:hover .full-photo {
+            display: block;
+        }
+        .full-photo {
+            display: none;
+            position: absolute;
+            top: 0;
+            right: 0;
+            z-index: 50;
+            border: 2px solid #9333ea;
+            border-radius: 0.5rem;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            max-width: 400px;
+            width: auto;
+            height: auto;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen">
+    <!-- Loader -->
     <div id="loader">
         <dotlottie-player 
             src="https://lottie.host/d7c0ef6c-ab8e-4878-8616-f715dde2daa3/rHYriJxVCS.lottie" 
@@ -80,52 +178,104 @@
         </dotlottie-player>
     </div>
 
-    <nav class="bg-gray-800 p-4 flex flex-wrap justify-between items-center shadow-lg sticky top-0 z-10">
-        <div class="flex flex-wrap space-x-4">
-            <a href="#doctor-info" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold">Home</a>
-            <a href="#patients-details" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold">Patients Details</a>
-            <a href="#search-patients" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold">Search Patients</a>
-            <a href="#requested-patients" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold">Requested Patients</a>
-            <a href="#shared-patients" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold">Shared Patients</a>
-            <a href="#request-patient-data" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold">Request Patient Data</a>
-            <a href="#view-patient-report" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold">View Report</a>
-            <a href="#view-appointments" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold">View Appointments</a>
-            <a href="#create-prescription" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold">Create Prescription</a>
-            <a href="#prescriptions" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold">Prescriptions</a>
+    <!-- Sidebar -->
+    <div class="sidebar fixed top-0 left-0 h-full w-64 bg-gray-800 shadow-xl z-50 overflow-y-auto">
+        <div class="p-4 border-b border-gray-700">
+            <h2 class="text-xl font-bold text-purple-400">Menu</h2>
+            <button id="close-sidebar" class="mt-2 text-gray-300 hover:text-purple-400 focus:outline-none">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
         </div>
-        <a href="{{ url_for('doctor.doctor_logout') }}" class="bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-600 transition duration-300 mt-2 md:mt-0">Logout</a>
-    </nav>
+        <nav class="flex flex-col p-4 space-y-2">
+            <a href="#doctor-info" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Home</a>
+            <a href="#patients-details" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Patients Details</a>
+            <a href="#search-patients" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Search Patients</a>
+            <a href="#requested-patients" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Requested Patients</a>
+            <a href="#shared-patients" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Shared Patients</a>
+            <a href="#request-patient-data" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Request Patient Data</a>
+            <a href="#view-patient-report" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">View Report</a>
+            <a href="#view-appointments" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">View Appointments</a>
+            <a href="#create-prescription" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Create Prescription</a>
+            <a href="#prescriptions" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Prescriptions</a>
+            <a href="{{ url_for('doctor.doctor_logout') }}" class="bg-purple-500 text-white px-3 py-2 rounded-md hover:bg-purple-600 transition duration-300 text-center">Logout</a>
+        </nav>
+    </div>
+
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- Top Bar with Toggle Button -->
+    <div class="bg-gray-800 p-4 flex justify-between items-center shadow-lg sticky top-0 z-40">
+        <button id="toggle-sidebar" class="text-gray-300 hover:text-purple-400 focus:outline-none">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+        </button>
+        <h1 class="text-xl font-bold text-purple-400">Doctor Dashboard</h1>
+    </div>
 
     <div class="container mx-auto px-4 py-8 max-w-5xl">
-        <!-- Doctor Info Section -->
-        <section id="doctor-info" class="mb-12">
-            <h2 class="text-2xl font-bold text-purple-400 font-serif mb-4 fade-in">Welcome, Dr. {{ doctor.name }}</h2>
-            
+        <!-- Welcome Message -->
+        <div id="welcome-message" class="welcome-message text-center mb-12">
+            <h2 class="text-3xl font-bold text-purple-400 font-serif mb-4 fade-in">Welcome, Dr. {{ doctor.name }}</h2>
+            <p class="text-gray-300">
+                Select an option from the menu to manage your dashboard. View patient details, appointments, prescriptions, or request data access seamlessly.
+            </p>
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
                         <div class="p-4 mb-6 rounded-lg text-center font-medium fade-in
                             {% if category == 'success' %} bg-green-900/80 text-green-200 border border-green-700 {% endif %}
                             {% if category == 'info' %} bg-blue-900/80 text-blue-200 border border-blue-700 {% endif %}
-                            {% if category == 'danger' %} bg-red-900/80 text-red-200 border border-red-700 {% endif %}">
+                            {% if category == 'danger' %} bg-red-900/80 text-red-200 border border-red-700 {% endif %}
+                            {% if category == 'warning' %} bg-yellow-900/80 text-yellow-200 border border-yellow-700 {% endif %}">
                             {{ message }}
                         </div>
                     {% endfor %}
                 {% endif %}
             {% endwith %}
+        </div>
 
-            <div class="bg-gray-800 p-6 rounded-lg shadow-xl fade-in">
-                <p class="text-gray-300"><strong>Doctor ID:</strong> {{ doctor.doctor_id }}</p>
-                <p class="text-gray-300"><strong>Email:</strong> {{ doctor.email }}</p>
-                <p class="text-gray-300"><strong>Phone:</strong> {{ doctor.phone }}</p>
-                <p class="text-gray-300"><strong>Specialization:</strong> {{ doctor.specialization }}</p>
+        <!-- Doctor Info Section -->
+        <section id="doctor-info" class="mb-12">
+            <h2 class="text-2xl font-bold text-purple-400 font-serif mb-4">Doctor Information</h2>
+            <div class="bg-gray-800 p-6 rounded-lg shadow-xl flex flex-col sm:flex-row sm:justify-between">
+                <div class="sm:w-2/3">
+                    <form method="POST" action="{{ url_for('doctor.upload_photo_doc') }}" enctype="multipart/form-data" class="mb-4">
+                        <label for="profile_photo" class="block text-gray-300 mb-2">Upload Profile Photo (JPEG/PNG, <2MB)</label>
+                        <input type="file" id="profile_photo" name="profile_photo" accept="image/jpeg,image/png"
+                               class="w-full p-2 bg-gray-600 border border-gray-500 rounded-lg text-gray-100 focus:outline-none focus:border-purple-500 mb-2">
+                        <button type="submit" 
+                                class="bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 hover:shadow-[0_0_10px_rgba(147,51,234,0.5)] transition-all duration-300">
+                            Upload Photo
+                        </button>
+                    </form>
+                    <p class="text-gray-300"><strong>Doctor ID:</strong> {{ doctor.doctor_id }}</p>
+                    <p class="text-gray-300"><strong>Email:</strong> {{ doctor.email }}</p>
+                    <p class="text-gray-300"><strong>Phone:</strong> {{ doctor.phone }}</p>
+                    <p class="text-gray-300"><strong>Specialization:</strong> {{ doctor.specialization }}</p>
+                </div>
+                <div class="profile-photo-container mt-4 sm:mt-0 sm:w-1/3 flex justify-center sm:justify-end">
+                    {% if doctor.profile_photo %}
+                        <img src="data:image/jpeg;base64,{{ doctor.profile_photo }}" alt="Profile Photo" 
+                             class="w-72 h-72 rounded-full object-cover border-2 border-purple-500 profile-photo">
+                        <img src="data:image/jpeg;base64,{{ doctor.profile_photo }}" alt="Full Profile Photo" 
+                             class="full-photo">
+                    {% else %}
+                        <div class="w-72 h-72 rounded-full bg-gray-600 flex items-center justify-center border-2 border-purple-500">
+                            <span class="text-gray-300 text-lg">No Photo</span>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
         </section>
 
         <!-- Patients Details Section -->
         <section id="patients-details" class="mb-12">
-            <h3 class="text-xl font-bold text-purple-400 font-serif mb-4 fade-in">Patients Details</h3>
-            <div class="overflow-x-auto fade-in">
+            <h3 class="text-xl font-bold text-purple-400 font-serif mb-4">Patients Details</h3>
+            <div class="overflow-x-auto">
                 <table class="w-full bg-gray-800 shadow-xl rounded-lg responsive-table">
                     <thead class="bg-gray-700">
                         <tr>
@@ -157,8 +307,8 @@
 
         <!-- Search Patients Section -->
         <section id="search-patients" class="mb-12">
-            <h3 class="text-xl font-bold text-purple-400 font-serif mb-4 fade-in">Search Patients</h3>
-            <div class="bg-gray-800 p-6 rounded-lg shadow-xl fade-in">
+            <h3 class="text-xl font-bold text-purple-400 font-serif mb-4">Search Patients</h3>
+            <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
                 <form method="POST" class="space-y-4">
                     <input type="hidden" name="action" value="search_patients">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -223,9 +373,9 @@
                                         <th class="p-3 text-left text-blue-300">Blood Pressure</th>
                                         <th class="p-3 text-left text-blue-300">Body Temp</th>
                                         <th class="p-3 text-left text-blue-300">Pulse Rate</th>
-                                        <th class="p-3 text-left text-blue-300">Previous Medications</th>
-                                        <th class="p-3 text-left text-blue-300">Updated Time</th>
-                                        <th class="p-3 text-left text-blue-300">Matched Fields</th>
+                                        <th class="p-3 text-left text-blue-300">Medications</th>
+                                        <th class="p-3 text-left text-blue-300">Updated</th>
+                                        <th class="p-3 text-left text-blue-300">Matches</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -239,9 +389,9 @@
                                             <td class="p-3" data-label="Blood Pressure">{{ result.blood_pressure }}</td>
                                             <td class="p-3" data-label="Body Temp">{{ result.body_temp }}</td>
                                             <td class="p-3" data-label="Pulse Rate">{{ result.pulse_rate }}</td>
-                                            <td class="p-3" data-label="Previous Medications">{{ result.previous_medications or 'N/A' }}</td>
-                                            <td class="p-3" data-label="Updated Time">{{ result.updated_time or 'N/A' }}</td>
-                                            <td class="p-3" data-label="Matched Fields">
+                                            <td class="p-3" data-label="Medications">{{ result.previous_medications or 'N/A' }}</td>
+                                            <td class="p-3" data-label="Updated">{{ result.updated_time or 'N/A' }}</td>
+                                            <td class="p-3" data-label="Matches">
                                                 {% for field in result.matched_fields %}
                                                     <span class="block">{{ field }}</span>
                                                 {% endfor %}
@@ -258,8 +408,8 @@
 
         <!-- Requested Patients Section -->
         <section id="requested-patients" class="mb-12">
-            <h3 class="text-xl font-bold text-purple-400 font-serif mb-4 fade-in">Requested Patients</h3>
-            <div class="overflow-x-auto fade-in">
+            <h3 class="text-xl font-bold text-purple-400 font-serif mb-4">Requested Patients</h3>
+            <div class="overflow-x-auto">
                 <table class="w-full bg-gray-800 shadow-xl rounded-lg responsive-table">
                     <thead class="bg-gray-700">
                         <tr>
@@ -311,8 +461,8 @@
 
         <!-- Shared Patients Section -->
         <section id="shared-patients" class="mb-12">
-            <h3 class="text-xl font-bold text-purple-400 font-serif mb-4 fade-in">Shared Patients</h3>
-            <div class="bg-gray-800 p-6 rounded-lg shadow-xl fade-in">
+            <h3 class="text-xl font-bold text-purple-400 font-serif mb-4">Shared Patients</h3>
+            <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
                 <!-- Share Patient Form -->
                 <h4 class="text-lg text-blue-300 mb-4">Share a Patient</h4>
                 <form method="POST" class="space-y-4 mb-6">
@@ -342,7 +492,7 @@
                     </button>
                 </form>
 
-                <!-- Shared Patients List -->
+                <!-- Accepted Shared Patients -->
                 <h4 class="text-lg text-blue-300 mb-4">Accepted Shared Patients</h4>
                 <div class="overflow-x-auto mb-6">
                     <table class="w-full bg-gray-800 shadow-xl rounded-lg responsive-table">
@@ -418,8 +568,8 @@
 
         <!-- Request Patient Data Section -->
         <section id="request-patient-data" class="mb-12">
-            <h3 class="text-xl font-bold text-purple-400 font-serif mb-4 fade-in">Request Patient Data Access</h3>
-            <div class="bg-gray-800 p-6 rounded-lg shadow-xl fade-in">
+            <h3 class="text-xl font-bold text-purple-400 font-serif mb-4">Request Patient Data Access</h3>
+            <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
                 <form method="POST" class="space-y-4">
                     <input type="hidden" name="action" value="request_access">
                     <div>
@@ -440,8 +590,8 @@
 
         <!-- View Patient Report Section -->
         <section id="view-patient-report" class="mb-12">
-            <h3 class="text-xl font-bold text-purple-400 font-serif mb-4 fade-in">View Patient Report</h3>
-            <div class="bg-gray-800 p-6 rounded-lg shadow-xl fade-in">
+            <h3 class="text-xl font-bold text-purple-400 font-serif mb-4">View Patient Report</h3>
+            <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
                 <form method="POST" class="space-y-4">
                     <input type="hidden" name="action" value="view_report">
                     <div>
@@ -472,8 +622,8 @@
 
         <!-- View Appointments Section -->
         <section id="view-appointments" class="mb-12">
-            <h3 class="text-xl font-bold text-purple-400 font-serif mb-4 fade-in">Your Appointments</h3>
-            <div class="overflow-x-auto fade-in">
+            <h3 class="text-xl font-bold text-purple-400 font-serif mb-4">Your Appointments</h3>
+            <div class="overflow-x-auto">
                 <table class="w-full bg-gray-800 shadow-xl rounded-lg responsive-table">
                     <thead class="bg-gray-700">
                         <tr>
@@ -508,21 +658,27 @@
                                             <form method="POST" class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                                                 <input type="hidden" name="appointment_id" value="{{ appt.appointment_id }}">
                                                 <button type="submit" name="action" value="Accept" 
-                                                    class="bg-green-500 text-white px-3 py-1 rounded-md hover:bg-green-600 transition duration-300">
+                                                        class="bg-green-500 text-white px-3 py-1 rounded-md hover:bg-green-600 transition duration-300">
                                                     Accept
                                                 </button>
                                                 <button type="submit" name="action" value="Reject" 
-                                                    class="bg-red-500 text-white px-3 py-1 rounded-md hover:bg-red-600 transition duration-300">
+                                                        class="bg-red-500 text-white px-3 py-1 rounded-md hover:bg-red-600 transition duration-300">
                                                     Reject
                                                 </button>
                                             </form>
-                                        {% elif appt.status == 'Confirmed' and appt.video_call_url %}
-                                            <a href="{{ url_for('video.join_video', unique_url=appt.video_call_url) }}" 
-                                               class="bg-purple-500 text-white px-3 py-1 rounded-md hover:bg-purple-600 transition duration-300">
-                                                Join Video Call
-                                            </a>
+                                        {% elif appt.status == 'Confirmed' and appt.appointment_type == 'online' %}
+                                            {% if appt.video_call_url %}
+                                                <a href="{{ url_for('video.join_video', unique_url=appt.video_call_url) }}"
+                                                   class="bg-purple-500 text-white px-4 py-1 rounded-md hover:bg-purple-600 transition duration-300">
+                                                    JoinCall
+                                                </a>
+                                            {% else %}
+                                                <span class="text-gray-400 font-semibold">Video call URL not available</span>
+                                            {% endif %}
+                                        {% elif appt.status == 'Confirmed' and appt.appointment_type == 'offline' %}
+                                            <span class="text-green-400 font-semibold">Visit Clinic</span>
                                         {% elif appt.status == 'Cancelled' %}
-                                            <span class="text-red-400 font-semibold">Rejected</span>
+                                            <span class="text-red-400 font-semibold">Rejected...!</span>
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -537,7 +693,7 @@
             </div>
         </section>
 
-        <!-- Create Prescription Section -->
+<!-- Create Prescription Section -->
         <section id="create-prescription" class="mb-12">
             <h3 class="text-xl font-bold text-purple-400 font-serif mb-4 fade-in">Create Prescription</h3>
             <div class="bg-gray-800 p-6 rounded-lg shadow-xl fade-in">
@@ -596,10 +752,11 @@
             </div>
         </section>
 
-        <!-- Prescriptions and Pharmacy Orders Section -->
+
+        <!-- Prescriptions Section -->
         <section id="prescriptions" class="mb-12">
-            <h3 class="text-xl font-bold text-purple-400 font-serif mb-4 fade-in">Prescriptions and Pharmacy Orders</h3>
-            <div class="overflow-x-auto fade-in">
+            <h3 class="text-xl font-bold text-purple-400 font-serif mb-4">Your Prescriptions</h3>
+            <div class="overflow-x-auto">
                 <table class="w-full bg-gray-800 shadow-xl rounded-lg responsive-table">
                     <thead class="bg-gray-700">
                         <tr>
@@ -607,11 +764,9 @@
                             <th class="p-3 text-left text-blue-300">Patient ID</th>
                             <th class="p-3 text-left text-blue-300">Medicine</th>
                             <th class="p-3 text-left text-blue-300">Dosage</th>
-                            <th class="p-3 text-left text-blue-300">Prescription Status</th>
-                            <th class="p-3 text-left text-blue-300">Order ID</th>
-                            <th class="p-3 text-left text-blue-300">Pharmacy</th>
-                            <th class="p-3 text-left text-blue-300">Order Status</th>
-                            <th class="p-3 text-left text-blue-300">Amount</th>
+                            <th class="p-3 text-left text-blue-300">Duration</th>
+                            <th class="p-3 text-left text-blue-300">Status</th>
+                            <th class="p-3 text-left text-blue-300">Order Details</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -621,79 +776,120 @@
                                     <td class="p-3" data-label="Prescription ID">{{ pr.prescription_id }}</td>
                                     <td class="p-3" data-label="Patient ID">{{ pr.patient_id }}</td>
                                     <td class="p-3" data-label="Medicine">{{ pr.medicine_name }}</td>
-                                    <td class="p-3" data-label="Dosage">{{ pr.dosage }} for {{ pr.duration }}</td>
-                                    <td class="p-3" data-label="Prescription Status">
+                                    <td class="p-3" data-label="Dosage">{{ pr.dosage }}</td>
+                                    <td class="p-3" data-label="Duration">{{ pr.duration }}</td>
+                                    <td class="p-3" data-label="Status">
                                         <span class="inline-block px-2 py-1 rounded-full text-sm font-bold
-                                            {% if pr.prescription_status == 'Filled' %}bg-green-900 text-green-400{% endif %}
-                                            {% if pr.prescription_status == 'Pending' %}bg-yellow-900 text-yellow-400{% endif %}">
+                                            {% if pr.prescription_status == 'Pending' %}bg-yellow-900 text-yellow-400{% endif %}
+                                            {% if pr.prescription_status == 'Completed' %}bg-green-900 text-green-400{% endif %}
+                                            {% if pr.prescription_status == 'Cancelled' %}bg-red-900 text-red-400{% endif %}">
                                             {{ pr.prescription_status }}
                                         </span>
                                     </td>
-                                    <td class="p-3" data-label="Order ID">{{ pr.pharmacy_order_id or 'N/A' }}</td>
-                                    <td class="p-3" data-label="Pharmacy">{{ pr.pharmacy_name or 'N/A' }}</td>
-                                    <td class="p-3" data-label="Order Status">
-                                        {% if pr.order_status %}
+                                    <td class="p-3" data-label="Order Details">
+                                        {% if pr.pharmacy_order_id %}
+                                            Order ID: {{ pr.pharmacy_order_id }}<br>
+                                            Pharmacy: {{ pr.pharmacy_name or 'N/A' }}<br>
+                                            Amount: ${{ pr.total_amount or 'N/A' }}<br>
+                                            Status: 
                                             <span class="inline-block px-2 py-1 rounded-full text-sm font-bold
-                                                {% if pr.order_status == 'Delivered' %}bg-green-900 text-green-400{% endif %}
-                                                {% if pr.order_status == 'Cancelled' %}bg-red-900 text-red-400{% endif %}
                                                 {% if pr.order_status == 'Pending' %}bg-yellow-900 text-yellow-400{% endif %}
-                                                {% if pr.order_status == 'Processing' %}bg-blue-900 text-blue-400{% endif %}
-                                                {% if pr.order_status == 'Shipped' %}bg-purple-900 text-purple-400{% endif %}">
-                                                {{ pr.order_status }}
+                                                {% if pr.order_status == 'Completed' %}bg-green-900 text-green-400{% endif %}
+                                                {% if pr.order_status == 'Cancelled' %}bg-red-900 text-red-400{% endif %}">
+                                                {{ pr.order_status or 'N/A' }}
                                             </span>
                                         {% else %}
-                                            <span class="text-gray-500">Not Ordered</span>
+                                            No order placed.
                                         {% endif %}
                                     </td>
-                                    <td class="p-3" data-label="Amount">₹{{ pr.total_amount or 'N/A' }}</td>
                                 </tr>
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="9" class="p-3 text-center">No prescriptions found.</td>
+                                <td colspan="7" class="p-3 text-center">No prescriptions found.</td>
                             </tr>
                         {% endif %}
                     </tbody>
                 </table>
             </div>
         </section>
-
-        <!-- Additional Forms -->
-        <form method="POST" class="mb-4 fade-in">
-            <input type="hidden" name="action" value="assign_doctor">
-            <label for="patient_id" class="block text-gray-300">Assign to Patient:</label>
-            <select name="patient_id" class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-gray-100">
-                {% for patient in all_patients %}
-                    <option value="{{ patient.patient_id }}">{{ patient.name }}</option>
-                {% endfor %}
-            </select>
-            <button type="submit" class="mt-2 bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-600">Assign</button>
-        </form>
     </div>
 
     <script>
-        const loader = document.getElementById('loader');
-        document.addEventListener('DOMContentLoaded', () => {
-            window.addEventListener('load', () => {
+        // Loader
+        window.addEventListener('load', () => {
+            const loader = document.getElementById('loader');
+            setTimeout(() => {
                 loader.classList.add('hidden');
+            }, 500);
+        });
+
+        // Sidebar Toggle
+        const toggleSidebar = document.getElementById('toggle-sidebar');
+        const closeSidebar = document.getElementById('close-sidebar');
+        const sidebar = document.querySelector('.sidebar');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+        function toggleSidebarMenu() {
+            sidebar.classList.toggle('open');
+            sidebarOverlay.classList.toggle('active');
+        }
+
+        toggleSidebar.addEventListener('click', toggleSidebarMenu);
+        closeSidebar.addEventListener('click', toggleSidebarMenu);
+        sidebarOverlay.addEventListener('click', toggleSidebarMenu);
+
+        // Section Navigation
+        const navLinks = document.querySelectorAll('.nav-link');
+        const sections = document.querySelectorAll('section');
+        const welcomeMessage = document.getElementById('welcome-message');
+
+        function showSection(sectionId) {
+            sections.forEach(section => {
+                section.classList.remove('active');
+            });
+            const targetSection = document.getElementById(sectionId);
+            if (targetSection) {
+                targetSection.classList.add('active');
+                welcomeMessage.style.display = sectionId === 'doctor-info' ? 'block' : 'none';
+            }
+        }
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const sectionId = link.getAttribute('href').substring(1);
+                showSection(sectionId);
+                sidebar.classList.remove('open');
+                sidebarOverlay.classList.remove('active');
             });
         });
-        document.querySelectorAll('form').forEach(form => {
-            form.addEventListener('submit', () => {
-                loader.classList.remove('hidden');
-            });
-        });
-        document.querySelector('a[href="{{ url_for("doctor.doctor_logout") }}"]').addEventListener('click', () => {
-            loader.classList.remove('hidden');
-        });
+
+        // Show default section
+        showSection('doctor-info');
+
+        // Copy to Clipboard
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(() => {
                 alert('Decryption key copied to clipboard!');
             }).catch(err => {
                 console.error('Failed to copy: ', err);
-                alert('Failed to copy the decryption key.');
             });
         }
     </script>
+    <footer style="
+    background-color: #1e1e1e;
+    color: #ffffff;
+    text-align: center;
+    padding: 15px 10px;
+    font-family: 'Arial', sans-serif;
+    font-size: 14px;
+    position: fixed;
+    width: 100%;
+    bottom: 0;
+    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
+">
+  © 2025 All rights reserved to <strong>Hemanth</strong>, <strong>Pavani</strong>, <strong>Vinnela</strong>.
+</footer>
 </body>
 </html>

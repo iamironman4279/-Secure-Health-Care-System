@@ -14,11 +14,157 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 from io import BytesIO
 from datetime import datetime
+import requests
+import logging
+from time import sleep
 
 patient_bp = Blueprint('patient', __name__)
 
 mysql = MySQL()
 aes = AESEncryption(AES_SECRET_KEY)
+
+logger = logging.getLogger(__name__)
+
+# Helper function to fetch public IP and geolocation data
+def fetch_geolocation(ip_address=None):
+    max_retries = 3
+    retry_delay = 2  # seconds
+    
+    try:
+        if not ip_address:
+            ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
+            logger.debug(f"Client IP from headers: {ip_address}")
+            
+            if not ip_address or ip_address in ('127.0.0.1', '::1'):
+                logger.warning(f"Invalid client IP: {ip_address}. Falling back to ifconfig.me")
+                for attempt in range(max_retries):
+                    try:
+                        ip_response = requests.get("https://ifconfig.me", timeout=5)
+                        logger.debug(f"ifconfig.me response (attempt {attempt + 1}): {ip_response.status_code}, {ip_response.text}")
+                        if ip_response.status_code == 200:
+                            ip_address = ip_response.text.strip()
+                            break
+                        else:
+                            logger.warning(f"ifconfig.me failed with status {ip_response.status_code}")
+                            if attempt < max_retries - 1:
+                                sleep(retry_delay)
+                                continue
+                            raise ValueError(f"ifconfig.me failed after {max_retries} attempts")
+                    except Exception as e:
+                        logger.error(f"ifconfig.me error (attempt {attempt + 1}): {str(e)}")
+                        if attempt < max_retries - 1:
+                            sleep(retry_delay)
+                            continue
+                        raise ValueError("Failed to fetch IP from ifconfig.me")
+            logger.debug(f"Using IP address: {ip_address}")
+
+        for attempt in range(max_retries):
+            try:
+                geo_response = requests.get(f"https://ipapi.co/{ip_address}/json/", timeout=5)
+                logger.debug(f"ipapi.co response for IP {ip_address} (attempt {attempt + 1}): {geo_response.status_code}, {geo_response.text}")
+                
+                if geo_response.status_code == 200:
+                    data = geo_response.json()
+                    if 'latitude' in data and 'longitude' in data and not data.get('error'):
+                        return {
+                            'ip_address': ip_address,
+                            'latitude': data.get('latitude'),
+                            'longitude': data.get('longitude'),
+                            'city': data.get('city') or 'Unknown',
+                            'region': data.get('region') or 'Unknown',
+                            'country': data.get('country_name') or 'Unknown'
+                        }
+                    else:
+                        logger.error(f"Invalid ipapi.co response for IP {ip_address}: {data}")
+                        raise ValueError("No valid geolocation data")
+                elif geo_response.status_code == 429:
+                    logger.warning(f"ipapi.co rate limit exceeded for IP {ip_address}")
+                    if attempt < max_retries - 1:
+                        sleep(retry_delay)
+                        continue
+                    raise ValueError("ipapi.co rate limit exceeded")
+                else:
+                    logger.error(f"ipapi.co failed with status {geo_response.status_code}: {geo_response.text}")
+                    raise ValueError(f"ipapi.co request failed with status {geo_response.status_code}")
+            except Exception as e:
+                logger.error(f"ipapi.co error for IP {ip_address} (attempt {attempt + 1}): {str(e)}")
+                if attempt < max_retries - 1:
+                    sleep(retry_delay)
+                    continue
+                raise ValueError(f"Failed to fetch geolocation data from ipapi.co: {str(e)}")
+        
+        raise ValueError("Failed to fetch geolocation data after retries")
+    
+    except Exception as e:
+        logger.error(f"Error fetching geolocation for IP {ip_address or 'unknown'}: {str(e)}")
+        raise ValueError(f"Failed to fetch geolocation data: {str(e)}")
+
+# Helper function to store geolocation data
+def store_user_location(user_id, ip_address=None):
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        try:
+            geolocation = fetch_geolocation(ip_address)
+            logger.debug(f"Storing location for user {user_id} with IP {geolocation['ip_address']}")
+            
+            cursor.execute("""
+                INSERT INTO secure_patient_db.user_locations (user_id, ip_address, latitude, longitude, city, region, country, timestamp)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+            """, (
+                user_id,
+                geolocation['ip_address'],
+                geolocation['latitude'],
+                geolocation['longitude'],
+                geolocation['city'],
+                geolocation['region'],
+                geolocation['country']
+            ))
+            mysql.connection.commit()
+            logger.debug(f"Stored geolocation for user {user_id} with IP {geolocation['ip_address']}")
+        except ValueError as e:
+            logger.warning(f"Geolocation fetch failed for user {user_id}: {str(e)}. Storing fallback location.")
+            # Store a fallback record with IP and placeholder values
+            fallback_ip = ip_address or request.headers.get('X-Forwarded-For', request.remote_addr)
+            cursor.execute("""
+                INSERT INTO secure_patient_db.user_locations (user_id, ip_address, latitude, longitude, city, region, country, timestamp)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+            """, (
+                user_id,
+                fallback_ip,
+                None,  # latitude
+                None,  # longitude
+                'Unknown',
+                'Unknown',
+                'Unknown'
+            ))
+            mysql.connection.commit()
+            logger.debug(f"Stored fallback location for user {user_id} with IP {fallback_ip}")
+    except Exception as e:
+        logger.error(f"Error storing user location for user {user_id}: {str(e)}")
+        mysql.connection.rollback()
+        # Do not raise exception to prevent dashboard crash
+    finally:
+        cursor.close()
+
+def validate_session_token(user_type):
+    if user_type not in ['patient', 'doctor']:
+        return False
+    
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        if user_type == 'patient':
+            cursor.execute("SELECT session_token FROM patients WHERE patient_id = %s", (session.get('patient_id'),))
+        else:
+            cursor.execute("SELECT session_token FROM doctors WHERE doctor_id = %s", (session.get('doctor_id'),))
+        
+        user = cursor.fetchone()
+        if not user or user['session_token'] != session.get('session_token'):
+            session.clear()
+            flash('Session invalid or expired. Please log in again.', 'danger')
+            return False
+        return True
+    finally:
+        cursor.close()
 
 def verify_signature(public_key_pem, data, signature):
     public_key = serialization.load_pem_public_key(public_key_pem.encode('utf-8'))
@@ -31,12 +177,42 @@ def verify_signature(public_key_pem, data, signature):
         )
         return True
     except Exception as e:
-        print(f"Signature verification failed: {str(e)}")
+        logger.error(f"Signature verification failed: {str(e)}")
         return False
+
+@patient_bp.route('/upload_photo', methods=['POST'])
+def upload_photo():
+    if 'loggedin' not in session or not validate_session_token('patient'):
+        flash('Please login to upload a photo.', 'warning')
+        return redirect(url_for('auth.login'))
+    
+    profile_photo = request.files.get('profile_photo')
+    if not profile_photo or not profile_photo.filename:
+        flash('No file selected.', 'danger')
+        return redirect(url_for('patient.dashboard'))
+    
+    if profile_photo.mimetype not in ['image/jpeg', 'image/png']:
+        flash('Only JPEG or PNG photos are allowed.', 'danger')
+        return redirect(url_for('patient.dashboard'))
+    
+    photo_data = profile_photo.read()
+    if len(photo_data) > 2 * 1024 * 1024:
+        flash('Photo size must be under 2MB.', 'danger')
+        return redirect(url_for('patient.dashboard'))
+    
+    cursor = mysql.connection.cursor()
+    cursor.execute("""
+        UPDATE patients SET profile_photo = %s WHERE patient_id = %s
+    """, (photo_data, session['patient_id']))
+    mysql.connection.commit()
+    cursor.close()
+    
+    flash('Profile photo uploaded successfully.', 'success')
+    return redirect(url_for('patient.dashboard'))
 
 @patient_bp.route('/dashboard')
 def dashboard():
-    if 'loggedin' not in session:
+    if 'loggedin' not in session or not validate_session_token('patient'):
         return redirect(url_for('auth.login'))
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -70,6 +246,9 @@ def dashboard():
     """, (session['patient_id'],))
     appointments = cursor.fetchall()
 
+    # Store user location, but don't crash on failure
+    store_user_location(session['patient_id'])
+
     cursor.close()
     return render_template('dashboard.html', 
                          patient=patient, 
@@ -78,14 +257,19 @@ def dashboard():
 
 @patient_bp.route('/logout')
 def logout():
-    session.pop('loggedin', None)
-    session.pop('patient_id', None)
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    if 'patient_id' in session:
+        cursor.execute("UPDATE patients SET session_token = NULL WHERE patient_id = %s", (session['patient_id'],))
+        mysql.connection.commit()
+    cursor.close()
+    
+    session.clear()
     flash('Logged out successfully', 'success')
     return redirect(url_for('auth.login'))
 
 @patient_bp.route('/upload', methods=['GET', 'POST'])
 def upload():
-    if 'loggedin' not in session:
+    if 'loggedin' not in session or not validate_session_token('patient'):
         flash('Please login to upload medical data.', 'warning')
         return redirect(url_for('auth.login'))
 
@@ -121,28 +305,31 @@ def upload():
 
 @patient_bp.route('/decrypt_key', methods=['GET', 'POST'])
 def decrypt_key():
+    if 'loggedin' not in session or not validate_session_token('patient'):
+        flash('Please login to view medical data.', 'warning')
+        return redirect(url_for('auth.login'))
+
     encrypted_keys = []
     decrypted_data = {}
     edit_mode = False
 
-    if 'loggedin' in session:
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute('''
-            SELECT id, patient_id, encrypted_data, updated_time
-            FROM medical_records
-            WHERE patient_id = %s
-        ''', (session['patient_id'],))
-        records = cursor.fetchall()
-        cursor.close()
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute('''
+        SELECT id, patient_id, encrypted_data, updated_time
+        FROM medical_records
+        WHERE patient_id = %s
+    ''', (session['patient_id'],))
+    records = cursor.fetchall()
+    cursor.close()
 
-        for record in records:
-            if record['encrypted_data']:
-                if isinstance(record['encrypted_data'], str):
-                    record_bytes = record['encrypted_data'].encode('utf-8')
-                else:
-                    record_bytes = record['encrypted_data']
-                record['encrypted_data'] = base64.b64encode(record_bytes).decode('utf-8')
-            encrypted_keys.append(record)
+    for record in records:
+        if record['encrypted_data']:
+            if isinstance(record['encrypted_data'], str):
+                record_bytes = record['encrypted_data'].encode('utf-8')
+            else:
+                record_bytes = record['encrypted_data']
+            record['encrypted_data'] = base64.b64encode(record_bytes).decode('utf-8')
+        encrypted_keys.append(record)
 
     if request.method == 'POST':
         action = request.form.get('action')
@@ -224,7 +411,7 @@ def decrypt_key():
 
 @patient_bp.route('/verify_doctor', methods=['GET', 'POST'])
 def verify_doctor():
-    if 'loggedin' not in session:
+    if 'loggedin' not in session or not validate_session_token('patient'):
         flash('Please login to verify doctor.', 'warning')
         return redirect(url_for('auth.login'))
 
@@ -260,7 +447,7 @@ def verify_doctor():
 
 @patient_bp.route('/medical_history_pdf')
 def medical_history_pdf():
-    if 'loggedin' not in session:
+    if 'loggedin' not in session or not validate_session_token('patient'):
         flash('Please login to generate medical history.', 'warning')
         return redirect(url_for('auth.login'))
 
@@ -294,7 +481,7 @@ def medical_history_pdf():
                     'price': 0
                 })
         except Exception as e:
-            print(f"Decryption error: {str(e)}")
+            logger.error(f"Decryption error: {str(e)}")
             continue
     
     cursor.execute("""

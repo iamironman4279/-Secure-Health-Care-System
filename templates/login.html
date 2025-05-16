@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Patient Access</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="{{ url_for('static', filename='tailwind.js') }}"></script>
   <style>
     body, html {
       margin: 0;
@@ -28,6 +28,22 @@
     .hidden {
       display: none;
     }
+    .alert {
+      position: relative;
+      cursor: pointer;
+    }
+    .alert .close {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 18px;
+      color: inherit;
+      opacity: 0.7;
+    }
+    .alert .close:hover {
+      opacity: 1;
+    }
   </style>
 </head>
 <body class="bg-gray-900 text-gray-100 flex items-center justify-center min-h-screen p-4 sm:p-6">
@@ -47,11 +63,13 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
-          <div class="p-4 mb-6 rounded-lg text-center font-medium
+          <div class="alert p-4 mb-6 rounded-lg text-center font-medium
             {% if category == 'success' %} bg-green-900/80 text-green-200 border border-green-700 {% endif %}
             {% if category == 'warning' %} bg-yellow-900/80 text-yellow-200 border border-yellow-700 {% endif %}
-            {% if category == 'danger' %} bg-red-900/80 text-red-200 border border-red-700 {% endif %}">
-            {{ message }}
+            {% if category == 'danger' %} bg-red-900/80 text-red-200 border border-red-700 {% endif %}
+            {% if category == 'info' %} bg-blue-900/80 text-blue-200 border border-blue-700 {% endif %}">
+            <span>{{ message }}</span>
+            <span class="close">×</span>
           </div>
         {% endfor %}
       {% endif %}
@@ -89,6 +107,9 @@
         Don't have an account? 
         <a href="{{ url_for('auth.register') }}" class="text-blue-300 hover:text-purple-400 font-semibold transition-all">Register here</a>
       </p>
+      <p class="mt-2 text-center text-gray-300">
+        <a href="{{ url_for('auth.home') }}" class="text-blue-300 hover:text-purple-400 font-semibold transition-all">Back to Home</a>
+      </p>
     </div>
 
     <!-- Forgot Password Form -->
@@ -110,18 +131,63 @@
       <p class="mt-6 text-center text-gray-300">
         <a href="#" onclick="toggleForm()" class="text-blue-300 hover:text-purple-400 transition-all">Back to Login</a>
       </p>
-      
     </div>
 
   </div>
 
-  <!-- JS to toggle forms -->
+  <!-- JS for form toggle and session polling -->
   <script>
     function toggleForm() {
       document.getElementById("loginForm").classList.toggle("hidden");
       document.getElementById("forgotForm").classList.toggle("hidden");
     }
+
+    // Make flash messages dismissible
+    document.querySelectorAll('.alert .close').forEach(closeBtn => {
+      closeBtn.addEventListener('click', () => {
+        closeBtn.parentElement.style.display = 'none';
+      });
+    });
+
+    // Session polling for dashboard (only run if logged in)
+    if (window.location.pathname.includes('/dashboard')) {
+      function checkSession() {
+        fetch('{{ url_for("auth.validate_session") }}', {
+          method: 'GET',
+          credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (!data.valid) {
+            alert(data.message || 'Your session is invalid. Redirecting to login.');
+            window.location.href = '{{ url_for("auth.login") }}';
+          }
+        })
+        .catch(error => {
+          console.error('Session check failed:', error);
+        });
+      }
+
+      // Poll every 30 seconds
+      setInterval(checkSession, 30000);
+      // Initial check
+      checkSession();
+    }
   </script>
 
+  <footer style="
+    background-color: #1e1e1e;
+    color: #ffffff;
+    text-align: center;
+    padding: 15px 10px;
+    font-family: 'Arial', sans-serif;
+    font-size: 14px;
+    position: fixed;
+    width: 100%;
+    bottom: 0;
+    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
+  ">
+    © 2025 All rights reserved to <strong>Hemanth</strong>, <strong>Pavani</strong>, <strong>Vinnela</strong>.
+  </footer>
 </body>
 </html>

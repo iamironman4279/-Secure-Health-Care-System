@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cloud Server Login</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="{{ url_for('static', filename='tailwind.js') }}"></script>
     <script src="https://unpkg.com/@dotlottie/player-component@2.7.12/dist/dotlottie-player.mjs" type="module"></script>
     <style>
         /* Loader styles */
@@ -28,8 +28,7 @@
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
-
-    <!-- Loading Animation (50% size: 150px x 150px) -->
+    <!-- Loading Animation -->
     <div id="loader">
         <dotlottie-player 
             src="https://lottie.host/d66b19c1-ef58-42d9-890d-477e7a14df0a/7eBJYLca37.lottie" 
@@ -47,12 +46,28 @@
         Your browser does not support the video tag.
     </video>
 
-    <!-- OTP Form Container -->
+    <!-- Login Form Container -->
     <div class="w-full max-w-md bg-gray-800 bg-opacity-75 backdrop-blur-md p-8 rounded-xl shadow-2xl relative z-10">
         <h2 class="text-3xl md:text-4xl text-purple-400 font-serif text-center mb-8">Cloud Server Login</h2>
 
-        <!-- OTP Form -->
-        <form method="POST" class="space-y-6" onsubmit="combineOTP(event)">
+        <!-- Authentication Options -->
+        <div class="flex justify-center space-x-4 mb-6">
+            <button id="webauthn-btn" 
+                    class="bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-all duration-300">
+                Login with Fingerprint
+            </button>
+            <button id="totp-btn" 
+                    class="bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-all duration-300">
+                Login with OTP
+            </button>
+        </div>
+        <p class="mt-2 text-center text-gray-300">
+            <a href="{{ url_for('auth.home') }}" class="text-blue-300 hover:text-purple-400 font-semibold transition-all">Back to Home</a>
+          </p>
+
+        <!-- TOTP Form (Hidden by Default) -->
+        <form id="totp-form" method="POST" class="space-y-6 hidden" onsubmit="combineOTP(event)">
+            <input type="hidden" name="auth_type" value="totp">
             <div>
                 <label for="otp" class="block text-blue-300 font-medium mb-2 text-center">Enter 6-Digit OTP</label>
                 <div class="flex justify-center space-x-2">
@@ -83,18 +98,33 @@
                 </div>
                 <input type="hidden" name="otp" id="combined-otp">
             </div>
-
             <button type="submit" 
                     class="w-full bg-purple-600 text-white py-3 px-6 rounded-lg font-semibold text-lg 
                     hover:bg-purple-700 hover:shadow-[0_0_15px_rgba(159,122,234,0.7)] transition-all duration-300 shadow-md">
                 Login
             </button>
         </form>
+
+        <!-- WebAuthn Form (Hidden) -->
+        <form id="webauthn-form" method="POST" class="hidden">
+            <input type="hidden" name="auth_type" value="webauthn">
+            <input type="hidden" name="credential" id="webauthn-credential">
+        </form>
+
+        <!-- QR Code for TOTP Setup -->
+        <div id="qr-code" class="text-center mt-6 hidden">
+            
+        </div>
     </div>
 
-    <!-- JavaScript for OTP Handling and Loader -->
+    <!-- JavaScript for OTP and WebAuthn Handling -->
     <script>
         const loader = document.getElementById('loader');
+        const webauthnBtn = document.getElementById('webauthn-btn');
+        const totpBtn = document.getElementById('totp-btn');
+        const totpForm = document.getElementById('totp-form');
+        const webauthnForm = document.getElementById('webauthn-form');
+        const qrCode = document.getElementById('qr-code');
 
         // Hide loader when page fully loads
         document.addEventListener('DOMContentLoaded', () => {
@@ -103,24 +133,38 @@
             });
         });
 
+        // Toggle between WebAuthn and TOTP
+        webauthnBtn.addEventListener('click', () => {
+            totpForm.classList.add('hidden');
+            qrCode.classList.add('hidden');
+            webauthnBtn.classList.add('bg-blue-700');
+            totpBtn.classList.remove('bg-purple-700');
+            initiateWebAuthn();
+        });
+
+        totpBtn.addEventListener('click', () => {
+            totpForm.classList.remove('hidden');
+            qrCode.classList.remove('hidden');
+            webauthnForm.classList.add('hidden');
+            totpBtn.classList.add('bg-purple-700');
+            webauthnBtn.classList.remove('bg-blue-700');
+        });
+
         // OTP input handling
-        document.addEventListener('DOMContentLoaded', function() {
-            const otpInputs = document.querySelectorAll('.otp-box');
-            otpInputs.forEach((input, index) => {
-                input.addEventListener('input', function(e) {
-                    if (e.target.value.length === 1 && index < otpInputs.length - 1) {
-                        otpInputs[index + 1].focus();
-                    }
-                });
-                input.addEventListener('keydown', function(e) {
-                    if (e.key === 'Backspace' && e.target.value === '' && index > 0) {
-                        otpInputs[index - 1].focus();
-                    }
-                });
+        const otpInputs = document.querySelectorAll('.otp-box');
+        otpInputs.forEach((input, index) => {
+            input.addEventListener('input', function(e) {
+                if (e.target.value.length === 1 && index < otpInputs.length - 1) {
+                    otpInputs[index + 1].focus();
+                }
+            });
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Backspace' && e.target.value === '' && index > 0) {
+                    otpInputs[index - 1].focus();
+                }
             });
         });
 
-        // Combine OTP and show loader on valid submission
         function combineOTP(event) {
             event.preventDefault();
             const otpInputs = document.querySelectorAll('.otp-box');
@@ -129,8 +173,8 @@
 
             if (otpValue.length === 6 && /^\d{6}$/.test(otpValue)) {
                 document.getElementById('combined-otp').value = otpValue;
-                loader.classList.remove('hidden'); // Show loader
-                event.target.submit(); // Submit form
+                loader.classList.remove('hidden');
+                event.target.submit();
             } else {
                 otpInputs.forEach(box => {
                     box.classList.add('border-red-500', 'shadow-[0_0_12px_rgba(239,68,68,0.7)]');
@@ -143,6 +187,69 @@
                 }, 2000);
             }
         }
+
+        // WebAuthn handling
+        async function initiateWebAuthn() {
+            try {
+                const options = JSON.parse('{{ webauthn_options | safe }}');
+                // Convert base64 challenge to ArrayBuffer
+                options.publicKey.challenge = base64ToArrayBuffer(options.publicKey.challenge);
+                const credential = await navigator.credentials.get(options);
+                if (credential) {
+                    const credentialData = {
+                        id: credential.id,
+                        rawId: arrayBufferToBase64(credential.rawId),
+                        type: credential.type,
+                        response: {
+                            authenticatorData: arrayBufferToBase64(credential.response.authenticatorData),
+                            clientDataJSON: arrayBufferToBase64(credential.response.clientDataJSON),
+                            signature: arrayBufferToBase64(credential.response.signature),
+                            userHandle: credential.response.userHandle ? arrayBufferToBase64(credential.response.userHandle) : null,
+                        },
+                    };
+                    document.getElementById('webauthn-credential').value = JSON.stringify(credentialData);
+                    loader.classList.remove('hidden');
+                    webauthnForm.submit();
+                }
+            } catch (err) {
+                console.error('WebAuthn error:', err);
+                alert('Biometric authentication failed. Please try OTP.');
+            }
+        }
+
+        // Utility functions for WebAuthn
+        function base64ToArrayBuffer(base64) {
+            const binary = atob(base64);
+            const len = binary.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function arrayBufferToBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary);
+        }
     </script>
+    <footer style="
+        background-color: #1e1e1e;
+        color: #ffffff;
+        text-align: center;
+        padding: 15px 10px;
+        font-family: 'Arial', sans-serif;
+        font-size: 14px;
+        position: fixed;
+        width: 100%;
+        bottom: 0;
+        box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
+    ">
+        © 2025 All rights reserved to <strong>Hemanth</strong>, <strong>Pavani</strong>, <strong>Vinnela</strong>.
+    </footer>
 </body>
 </html>

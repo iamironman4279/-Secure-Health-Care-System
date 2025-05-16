@@ -1,24 +1,32 @@
-<script src="https://unpkg.com/@dotlottie/player-component@2.7.12/dist/dotlottie-player.mjs" type="module"></script>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Patient Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="{{ url_for('static', filename='tailwind.js') }}"></script>
+    <script src="https://unpkg.com/@dotlottie/player-component@2.7.12/dist/dotlottie-player.mjs" type="module"></script>
     <style>
-        .nav-link {
-            transition: all 0.3s ease;
-            padding: 8px 16px;
-            border-radius: 20px;
+        @keyframes glow {
+            0% { text-shadow: 0 0 5px rgba(147, 51, 234, 0.5); }
+            50% { text-shadow: 0 0 15px rgba(147, 51, 234, 0.8), 0 0 25px rgba(147, 51, 234, 0.6); }
+            100% { text-shadow: 0 0 5px rgba(147, 51, 234, 0.5); }
         }
         .nav-link:hover {
-            background-color: rgba(147, 51, 234, 0.3);
-            color: #ffffff;
+            animation: glow 1.5s infinite;
         }
-        .nav-active {
-            background-color: rgba(147, 51, 234, 0.5);
-            color: #ffffff;
+        .glassmorphism {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 0 20px rgba(147, 51, 234, 0.2);
+        }
+        .neon-gradient {
+            background: linear-gradient(45deg, #9333ea, #06b6d4, #d8b4fe);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
         }
         .table-container {
             background: linear-gradient(145deg, #2d3748, #1a202c);
@@ -42,232 +50,457 @@
             opacity: 0;
             pointer-events: none;
         }
+        /* Sidebar Styles */
+        .sidebar {
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+        }
+        .sidebar.open {
+            transform: translateX(0);
+        }
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 40;
+        }
+        .sidebar-overlay.active {
+            display: block;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+        }
+        .sidebar.open .nav-link {
+            animation: slideIn 0.3s ease-in forwards;
+        }
+        .sidebar:not(.open) .nav-link {
+            animation: slideOut 0.3s ease-out forwards;
+        }
+        /* Content Section Styles */
+        section {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            transform: translateY(20px);
+        }
+        section.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        section:not(.active) {
+            position: absolute;
+            pointer-events: none;
+        }
+        .welcome-message {
+            transition: opacity 0.5s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in forwards;
+        }
+        /* Profile Photo Styles */
+        .profile-photo-container {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .profile-photo {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .profile-photo:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(147, 51, 234, 0.5);
+        }
+        .profile-photo-container:hover .full-photo {
+            display: block;
+        }
+        .full-photo {
+            display: none;
+            position: absolute;
+            top: 0;
+            right: 0;
+            z-index: 50;
+            border: 2px solid #9333ea;
+            border-radius: 0.5rem;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            max-width: 400px;
+            width: auto;
+            height: auto;
+        }
+        /* Table Enhancements */
+        th, td {
+            padding: 12px 16px;
+            border: 1px solid #4b5563; /* border-gray-600 */
+        }
+        th {
+            font-weight: 600;
+            background-color: #374151; /* bg-gray-700 */
+        }
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem; /* text-xs */
+            font-weight: 600;
+            display: inline-block;
+            text-align: center;
+            min-width: 80px;
+        }
+        .section-divider {
+            border: 0;
+            height: 2px;
+            background: linear-gradient(to right, transparent, #9333ea, transparent);
+            margin: 2rem 0;
+        }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col">
-    <!-- Loading Animation -->
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <!-- Loader -->
     <div id="loader">
         <dotlottie-player 
             src="https://lottie.host/d7c0ef6c-ab8e-4878-8616-f715dde2daa3/rHYriJxVCS.lottie" 
             background="transparent" 
             speed="1" 
-            style="width: 300px; height: 300px" 
+            style="width: 150px; height: 150px" 
             loop 
             autoplay>
         </dotlottie-player>
     </div>
 
-    <nav class="bg-gray-800 p-4 shadow-lg sticky top-0 z-50">
-        <div class="container mx-auto flex justify-between items-center flex-wrap">
-            <h2 class="text-2xl font-serif text-purple-400">Patient Dashboard</h2>
-            <div class="flex flex-wrap gap-3 mt-2 sm:mt-0">
-                <a href="{{ url_for('patient.dashboard') }}" 
-                   class="nav-link text-blue-300 {% if request.endpoint == 'patient.dashboard' %}nav-active{% endif %}">
-                    Dashboard
-                </a>
-                <a href="{{ url_for('patient.upload') }}" 
-                   class="nav-link text-blue-300 {% if request.endpoint == 'patient.upload' %}nav-active{% endif %}">
-                    Upload Data
-                </a>
-                <a href="{{ url_for('patient.decrypt_key') }}" 
-                   class="nav-link text-blue-300 {% if request.endpoint == 'patient.decrypt_key' %}nav-active{% endif %}">
-                    Medical Records
-                </a>
-                <a href="{{ url_for('appointment.appointments') }}" 
-                   class="nav-link text-blue-300 {% if request.endpoint == 'appointment.appointments' %}nav-active{% endif %}">
-                    Appointments
-                </a>
-                <a href="{{ url_for('pharmacy.pharmacy') }}" 
-                   class="nav-link text-blue-300 {% if request.endpoint == 'pharmacy.pharmacy' %}nav-active{% endif %}">
-                    Pharmacy
-                </a>
-                <a href="{{ url_for('patient.verify_doctor') }}" 
-                   class="nav-link text-blue-300 {% if request.endpoint == 'patient.verify_doctor' %}nav-active{% endif %}">
-                    Verify Doctor
-                </a>
-                <a href="{{ url_for('patient.medical_history_pdf') }}" 
-                   class="nav-link text-blue-300 {% if request.endpoint == 'patient.medical_history_pdf' %}nav-active{% endif %}">
-                    Download Receipt
-                </a>
-                <a href="{{ url_for('auth.logout') }}" 
-                   class="nav-link text-blue-300 hover:bg-red-900">
-                    Logout
-                </a>
-            </div>
+    <!-- Sidebar -->
+    <div class="sidebar fixed top-0 left-0 h-full w-64 bg-gray-800 shadow-xl z-50 overflow-y-auto">
+        <div class="p-4 border-b border-gray-700">
+            <h2 class="text-xl font-bold text-purple-400 neon-gradient">Patient Menu</h2>
+            <button id="close-sidebar" class="mt-2 text-gray-300 hover:text-purple-400 focus:outline-none">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
         </div>
-    </nav>
-
-    <div class="container mx-auto max-w-5xl p-6 mt-8">
-        <!-- Patient Info -->
-        <div class="table-container p-6 shadow-xl mb-8">
-            <h3 class="text-2xl text-purple-400 font-serif text-center mb-6">Welcome, {{ patient.name or 'Patient' }}</h3>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-gray-700">
-                            <th class="p-3 border-b border-gray-600 text-blue-300">Field</th>
-                            <th class="p-3 border-b border-gray-600 text-blue-300">Details</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr class="hover:bg-gray-700 transition-colors duration-200">
-                            <td class="p-3 border-b border-gray-600 font-semibold">Patient ID</td>
-                            <td class="p-3 border-b border-gray-600">{{ patient.patient_id or 'N/A' }}</td>
-                        </tr>
-                        <tr class="hover:bg-gray-700 transition-colors duration-200">
-                            <td class="p-3 border-b border-gray-600 font-semibold">Email</td>
-                            <td class="p-3 border-b border-gray-600">{{ patient.email or 'N/A' }}</td>
-                        </tr>
-                        <tr class="hover:bg-gray-700 transition-colors duration-200">
-                            <td class="p-3 border-b border-gray-600 font-semibold">Phone</td>
-                            <td class="p-3 border-b border-gray-600">{{ patient.phone or 'N/A' }}</td>
-                        </tr>
-                        <tr class="hover:bg-gray-700 transition-colors duration-200">
-                            <td class="p-3 border-b border-gray-600 font-semibold">Status</td>
-                            <td class="p-3 border-b border-gray-600">
-                                {% if patient.is_activated %}
-                                    <span class="text-green-400 font-bold">Activated</span>
-                                {% else %}
-                                    <span class="text-yellow-400 font-bold">Pending Activation</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                    </tbody>  
-                </table>
-            </div>
-        </div>
-
-        <!-- Prescriptions and Pharmacy Orders -->
-        <div class="table-container p-6 shadow-xl mb-8">
-            <h3 class="text-xl text-purple-400 font-serif mb-4">Your Prescriptions and Orders</h3>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-gray-700">
-                            <th class="p-3 border-b border-gray-600 text-blue-300">Prescription ID</th>
-                            <th class="p-3 border-b border-gray-600 text-blue-300">Doctor</th>
-                            <th class="p-3 border-b border-gray-600 text-blue-300">Medicine</th>
-                            <th class="p-3 border-b border-gray-600 text-blue-300">Dosage</th>
-                            <th class="p-3 border-b border-gray-600 text-blue-300">Prescription Status</th>
-                            <th class="p-3 border-b border-gray-600 text-blue-300">Order ID</th>
-                            <th class="p-3 border-b border-gray-600 text-blue-300">Pharmacy</th>
-                            <th class="p-3 border-b border-gray-600 text-blue-300">Order Status</th>
-                            <th class="p-3 border-b border-gray-600 text-blue-300">Amount</th>
-                            <th class="p-3 border-b border-gray-600 text-blue-300">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if prescriptions %}
-                            {% for pr in prescriptions %}
-                                <tr class="hover:bg-gray-700 transition-colors duration-200">
-                                    <td class="p-3 border-b border-gray-600">{{ pr.prescription_id }}</td>
-                                    <td class="p-3 border-b border-gray-600">{{ pr.doctor_name }}</td>
-                                    <td class="p-3 border-b border-gray-600">{{ pr.medicine_name }}</td>
-                                    <td class="p-3 border-b border-gray-600">{{ pr.dosage }} for {{ pr.duration }}</td>
-                                    <td class="p-3 border-b border-gray-600">
-                                        <span class="inline-block px-2 py-1 rounded-full text-sm font-bold
-                                            {% if pr.prescription_status == 'success' %}bg-green-900 text-green-400{% endif %}
-                                            {% if pr.prescription_status == 'Pending' %}bg-yellow-900 text-yellow-400{% endif %}">
-                                            {{ pr.prescription_status }}
-                                        </span>
-                                    </td>
-                                    <td class="p-3 border-b border-gray-600">{{ pr.pharmacy_order_id or 'N/A' }}</td>
-                                    <td class="p-3 border-b border-gray-600">{{ pr.pharmacy_name or 'N/A' }}</td>
-                                    <td class="p-3 border-b border-gray-600">
-                                        {% if pr.order_status %}
-                                            <span class="inline-block px-2 py-1 rounded-full text-sm font-bold
-                                                {% if pr.order_status == 'Delivered' %}bg-green-900 text-green-400{% endif %}
-                                                {% if pr.order_status == 'Cancelled' %}bg-red-900 text-red-400{% endif %}
-                                                {% if pr.order_status == 'Pending' %}bg-yellow-900 text-yellow-400{% endif %}
-                                                {% if pr.order_status == 'Processing' %}bg-blue-900 text-blue-400{% endif %}
-                                                {% if pr.order_status == 'Shipped' %}bg-purple-900 text-purple-400{% endif %}">
-                                                {{ pr.order_status }}
-                                            </span>
-                                        {% else %}
-                                            <span class="text-gray-500">Not Ordered</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="p-3 border-b border-gray-600">₹{{ pr.total_amount or 'N/A' }}</td>
-                                    <td class="p-3 border-b border-gray-600">
-                                        <a href="{{ url_for('pharmacy.generate_prescription_pdf', prescription_id=pr.prescription_id) }}"
-                                           class="text-blue-400 hover:text-blue-300 transition-colors duration-200">
-                                            Download PDF
-                                        </a>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="10" class="p-3 text-center border-b border-gray-600">No prescriptions found.</td>
-                            </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Recent Appointments -->
-        <div class="table-container p-6 shadow-xl">
-            <h3 class="text-xl text-purple-400 font-serif mb-4">Recent Appointments</h3>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-gray-700">
-                            <th class="p-3 border-b border-gray-600 text-blue-300">Date</th>
-                            <th class="p-3 border-b border-gray-600 text-blue-300">Doctor</th>
-                            <th class="p-3 border-b border-gray-600 text-blue-300">Specialization</th>
-                            <th class="p-3 border-b border-gray-600 text-blue-300">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if appointments %}
-                            {% for apt in appointments %}
-                                <tr class="hover:bg-gray-700 transition-colors duration-200">
-                                    <td class="p-3 border-b border-gray-600">{{ apt.appointment_date.strftime('%Y-%m-%d') }}</td>
-                                    <td class="p-3 border-b border-gray-600">{{ apt.doctor_name }}</td>
-                                    <td class="p-3 border-b border-gray-600">{{ apt.specialization }}</td>
-                                    <td class="p-3 border-b border-gray-600">
-                                        <span class="inline-block px-2 py-1 rounded-full text-sm font-bold
-                                            {% if apt.status == 'Confirmed' %}bg-green-900 text-green-400{% endif %}
-                                            {% if apt.status == 'Pending' %}bg-yellow-900 text-yellow-400{% endif %}
-                                            {% if apt.status == 'Cancelled' %}bg-red-900 text-red-400{% endif %}">
-                                            {{ apt.status }}
-                                        </span>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="4" class="p-3 text-center border-b border-gray-600">No recent appointments.</td>
-                            </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+        <nav class="flex flex-col p-4 space-y-2">
+            <a href="{{ url_for('patient.dashboard') }}" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Dashboard</a>
+            <a href="{{ url_for('patient.upload') }}" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Upload Data</a>
+            <a href="{{ url_for('patient.decrypt_key') }}" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Medical Records</a>
+            <a href="{{ url_for('appointment.appointments') }}" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Appointments</a>
+            <a href="{{ url_for('pharmacy.pharmacy') }}" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Pharmacy</a>
+            <a href="{{ url_for('patient.verify_doctor') }}" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Verify Doctor</a>
+            <a href="#prescriptions"的人们 class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Prescriptions</a>
+            <a href="#appointments" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Recent Appointments</a>
+            <a href="{{ url_for('patient.medical_history_pdf') }}" class="nav-link text-blue-300 hover:text-purple-400 transition-colors duration-300 font-semibold py-2 px-3 rounded-md">Download Receipt</a>
+            <a href="{{ url_for('auth.logout') }}" class="bg-purple-500 text-white px-3 py-2 rounded-md hover:bg-purple-600 transition duration-300 text-center">Logout</a>
+        </nav>
     </div>
 
-    <!-- JavaScript to handle loader -->
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- Top Bar with Toggle Button -->
+    <div class="bg-gray-800 p-4 flex justify-between items-center shadow-lg sticky top-0 z-40">
+        <button id="toggle-sidebar" class="text-gray-300 hover:text-purple-400 focus:outline-none">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+        </button>
+        <h1 class="text-xl font-bold text-purple-400 neon-gradient">Patient Dashboard</h1>
+    </div>
+
+    <div class="container mx-auto px-4 py-8 max-w-5xl">
+        <!-- Welcome Message -->
+        <div id="welcome-message" class="welcome-message text-center mb-12">
+            <h2 class="text-3xl font-bold text-purple-400 font-serif mb-4 neon-gradient fade-in">Welcome, {{ patient.name or 'Patient' }}</h2>
+            <p class="text-gray-300">Select an option from the menu to manage your health records.</p>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="p-4 mb-6 rounded-lg text-center font-medium fade-in glassmorphism
+                            {% if category == 'success' %} bg-green-900/80 text-green-200 border border-green-700 {% endif %}
+                            {% if category == 'info' %} bg-blue-900/80 text-blue-200 border border-blue-700 {% endif %}
+                            {% if category == 'danger' %} bg-red-900/80 text-red-200 border border-red-700 {% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+
+        <!-- Patient Info -->
+        <section id="patient-info" class="mb-12">
+            <h3 class="text-2xl text-purple-400 font-serif mb-6 neon-gradient">Patient Information</h3>
+            <div class="table-container p-6 shadow-xl glassmorphism grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="md:col-span-2">
+                    <form method="POST" action="{{ url_for('patient.upload_photo') }}" enctype="multipart/form-data" class="mb-6">
+                        <label for="profile_photo" class="block text-gray-300 mb-2">Upload Profile Photo (JPEG/PNG, <2MB)</label>
+                        <input type="file" id="profile_photo" name="profile_photo" accept="image/jpeg,image/png"
+                               class="w-full p-2 bg-gray-600 border border-gray-500 rounded-lg text-gray-100 focus:outline-none focus:border-purple-500 mb-2">
+                        <button type="submit" 
+                                class="bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 hover:shadow-[0_0_10px_rgba(147,51,234,0.5)] transition-all duration-300">
+                            Upload Photo
+                        </button>
+                    </form>
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-700">
+                                <th class="p-4 border border-gray-600 text-blue-300 font-semibold">Field</th>
+                                <th class="p-4 border border-gray-600 text-blue-300 font-semibold">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="hover:bg-gray-700 transition-colors duration-200">
+                                <td class="p-4 border border-gray-600 font-semibold">Patient ID</td>
+                                <td class="p-4 border border-gray-600">{{ patient.patient_id or 'N/A' }}</td>
+                            </tr>
+                            <tr class="hover:bg-gray-700 transition-colors duration-200">
+                                <td class="p-4 border border-gray-600 font-semibold">Email</td>
+                                <td class="p-4 border border-gray-600">{{ patient.email or 'N/A' }}</td>
+                            </tr>
+                            <tr class="hover:bg-gray-700 transition-colors duration-200">
+                                <td class="p-4 border border-gray-600 font-semibold">Phone</td>
+                                <td class="p-4 border border-gray-600">{{ patient.phone or 'N/A' }}</td>
+                            </tr>
+                            <tr class="hover:bg-gray-700 transition-colors duration-200">
+                                <td class="p-4 border border-gray-600 font-semibold">Status</td>
+                                <td class="p-4 border border-gray-600">
+                                    {% if patient.is_activated %}
+                                        <span class="status-badge bg-green-900 text-green-400">Activated</span>
+                                    {% else %}
+                                        <span class="status-badge bg-yellow-900 text-yellow-400">Pending Activation</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="profile-photo-container flex items-center justify-center">
+                    {% if patient.profile_photo %}
+                        <img src="data:image/jpeg;base64,{{ patient.profile_photo | b64encode }}" alt="Profile Photo" 
+                             class="w-48 h-48 rounded-full object-cover border-2 border-purple-500 profile-photo">
+                        <img src="data:image/jpeg;base64,{{ patient.profile_photo | b64encode }}" alt="Full Profile Photo" 
+                             class="full-photo">
+                    {% else %}
+                        <div class="w-48 h-48 rounded-full bg-gray-600 flex items-center justify-center border-2 border-purple-500">
+                            <span class="text-gray-300 text-lg">No Photo</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <hr class="section-divider">
+
+        <!-- Prescriptions and Pharmacy Orders -->
+        <section id="prescriptions" class="mb-12">
+            <h3 class="text-xl text-purple-400 font-serif mb-4 neon-gradient">Your Prescriptions and Orders</h3>
+            <div class="table-container p-6 shadow-xl glassmorphism">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-700">
+                                <th class="p-4 border border-gray-600 text-blue-300 font-semibold text-center min-w-[120px]">Prescription ID</th>
+                                <th class="p-4 border border-gray-600 text-blue-300 font-semibold min-w-[150px]">Doctor</th>
+                                <th class="p-4 border border-gray-600 text-blue-300 font-semibold min-w-[150px]">Medicine</th>
+                                <th class="p-4 border border-gray-600 text-blue-300 font-semibold min-w-[150px]">Dosage</th>
+                                <th class="p-4 border border-gray-600 text-blue-300 font-semibold text-center min-w-[120px]">Prescription Status</th>
+                                <th class="p-4 border border-gray-600 text-blue-300 font-semibold text-center min-w-[120px]">Order ID</th>
+                                <th class="p-4 border border-gray-600 text-blue-300 font-semibold min-w-[150px]">Pharmacy</th>
+                                <th class="p-4 border border-gray-600 text-blue-300 font-semibold text-center min-w-[120px]">Order Status</th>
+                                <th class="p-4 border border-gray-600 text-blue-300 font-semibold text-right min-w-[100px]">Amount</th>
+                                <th class="p-4 border border-gray-600 text-blue-300 font-semibold text-center min-w-[120px]">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if prescriptions %}
+                                {% for pr in prescriptions %}
+                                    <tr class="hover:bg-gray-700 transition-colors duration-200">
+                                        <td class="p-4 border border-gray-600 text-center">{{ pr.prescription_id }}</td>
+                                        <td class="p-4 border border-gray-600">{{ pr.doctor_name }}</td>
+                                        <td class="p-4 border border-gray-600">{{ pr.medicine_name }}</td>
+                                        <td class="p-4 border border-gray-600">{{ pr.dosage }} for {{ pr.duration }}</td>
+                                        <td class="p-4 border border-gray-600 text-center">
+                                            <span class="status-badge
+                                                {% if pr.prescription_status == 'success' %}bg-green-900 text-green-400{% endif %}
+                                                {% if pr.prescription_status == 'Pending' %}bg-yellow-900 text-yellow-400{% endif %}">
+                                                {{ pr.prescription_status }}
+                                            </span>
+                                        </td>
+                                        <td class="p-4 border border-gray-600 text-center">{{ pr.pharmacy_order_id or 'N/A' }}</td>
+                                        <td class="p-4 border border-gray-600">{{ pr.pharmacy_name or 'N/A' }}</td>
+                                        <td class="p-4 border border-gray-600 text-center">
+                                            {% if pr.order_status %}
+                                                <span class="status-badge
+                                                    {% if pr.order_status == 'Delivered' %}bg-green-900 text-green-400{% endif %}
+                                                    {% if pr.order_status == 'Cancelled' %}bg-red-900 text-red-400{% endif %}
+                                                    {% if pr.order_status == 'Pending' %}bg-yellow-900 text-yellow-400{% endif %}
+                                                    {% if pr.order_status == 'Processing' %}bg-blue-900 text-blue-400{% endif %}
+                                                    {% if pr.order_status == 'Shipped' %}bg-purple-900 text-purple-400{% endif %}">
+                                                    {{ pr.order_status }}
+                                                </span>
+                                            {% else %}
+                                                <span class="status-badge bg-gray-700 text-gray-500">Not Ordered</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="p-4 border border-gray-600 text-right">₹{{ pr.total_amount or 'N/A' }}</td>
+                                        <td class="p-4 border border-gray-600 text-center">
+                                            <a href="{{ url_for('pharmacy.generate_prescription_pdf', prescription_id=pr.prescription_id) }}"
+                                               class="text-blue-400 hover:text-blue-300 transition-colors duration-200">
+                                                Download PDF
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="10" class="p-4 border border-gray-600 text-center">No prescriptions found.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <hr class="section-divider">
+
+        <!-- Recent Appointments -->
+        <section id="appointments" class="mb-12">
+            <h3 class="text-xl text-purple-400 font-serif mb-4 neon-gradient">Recent Appointments</h3>
+            <div class="table-container p-6 shadow-xl glassmorphism">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-700">
+                                <th class="p-4 border border-gray-600 text-blue-300 font-semibold min-w-[120px]">Date</th>
+                                <th class="p-4 border border-gray-600 text-blue-300 font-semibold min-w-[150px]">Doctor</th>
+                                <th class="p-4 border border-gray-600 text-blue-300 font-semibold min-w-[150px]">Specialization</th>
+                                <th class="p-4 border border-gray-600 text-blue-300 font-semibold text-center min-w-[120px]">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if appointments %}
+                                {% for apt in appointments %}
+                                    <tr class="hover:bg-gray-700 transition-colors duration-200">
+                                        <td class="p-4 border border-gray-600">{{ apt.appointment_date.strftime('%Y-%m-%d') }}</td>
+                                        <td class="p-4 border border-gray-600">{{ apt.doctor_name }}</td>
+                                        <td class="p-4 border border-gray-600">{{ apt.specialization }}</td>
+                                        <td class="p-4 border border-gray-600 text-center">
+                                            <span class="status-badge
+                                                {% if apt.status == 'Confirmed' %}bg-green-900 text-green-400{% endif %}
+                                                {% if apt.status == 'Pending' %}bg-yellow-900 text-yellow-400{% endif %}
+                                                {% if apt.status == 'Cancelled' %}bg-red-900 text-red-400{% endif %}">
+                                                {{ apt.status }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="p-4 border border-gray-600 text-center">No recent appointments.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- JavaScript -->
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const loader = document.getElementById('loader');
-            
-            // Hide loader when page is fully loaded
-            window.addEventListener('load', function() {
+        const loader = document.getElementById('loader');
+        const sidebar = document.querySelector('.sidebar');
+        const toggleSidebarBtn = document.getElementById('toggle-sidebar');
+        const closeSidebarBtn = document.getElementById('close-sidebar');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        const welcomeMessage = document.getElementById('welcome-message');
+        const sections = document.querySelectorAll('section');
+        const navLinks = document.querySelectorAll('.nav-link');
+
+        function toggleSidebar() {
+            sidebar.classList.toggle('open');
+            sidebarOverlay.classList.toggle('active');
+            document.body.classList.toggle('overflow-hidden');
+        }
+
+        function showSection(sectionId) {
+            sections.forEach(section => {
+                if (section.id === sectionId) {
+                    section.classList.add('active');
+                } else {
+                    section.classList.remove('active');
+                }
+            });
+            welcomeMessage.style.display = sectionId ? 'none' : 'block';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Hide loader on page load
+            window.addEventListener('load', () => {
                 loader.classList.add('hidden');
             });
 
-            // Show loader when navigating away
-            document.querySelectorAll('a').forEach(link => {
-                link.addEventListener('click', function(e) {
-                    // Skip for Download PDF links or any link that shouldn't trigger loader
-                    if (this.href.includes('generate_prescription_pdf') || this.href.includes('medical_history_pdf')) {
-                        return;
+            // Sidebar toggle
+            toggleSidebarBtn.addEventListener('click', toggleSidebar);
+            closeSidebarBtn.addEventListener('click', toggleSidebar);
+            sidebarOverlay.addEventListener('click', toggleSidebar);
+
+            // Handle nav link clicks
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    const href = link.getAttribute('href');
+                    if (href.startsWith('#')) {
+                        e.preventDefault();
+                        const sectionId = href.substring(1);
+                        showSection(sectionId);
+                        toggleSidebar();
+                    } else if (!href.includes('generate_prescription_pdf') && !href.includes('medical_history_pdf')) {
+                        // Show loader for non-PDF navigation links
+                        loader.classList.remove('hidden');
                     }
-                    loader.classList.remove('hidden');
                 });
             });
+
+            // Initially show patient-info section
+            showSection('patient-info');
         });
     </script>
+
+    <footer style="
+        background-color: #1e1e1e;
+        color: #ffffff;
+        text-align: center;
+        padding: 15px 10px;
+        font-family: 'Arial', sans-serif;
+        font-size: 14px;
+        position: fixed;
+        width: 100%;
+        bottom: 0;
+        box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
+    ">
+        © 2025 All rights reserved to <strong>Hemanth</strong>, <strong>Pavani</strong>, <strong>Vinnela</strong>.
+    </footer>
 </body>
 </html>
